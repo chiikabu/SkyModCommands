@@ -31,6 +31,10 @@ async function buildOnce() {
   html = html.replace('/*__JS__*/', () => js.replace(/<\/script/gi, '<\\/script'));
   fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
   fs.writeFileSync(path.join(root, 'dist/index.html'), html);
+  // Artifact variant: no doctype/html/head/body wrapper (the host supplies the skeleton + viewport meta)
+  const head = html.match(/<head>([\s\S]*?)<\/head>/)[1].replace(/<meta[^>]*>\s*/g, '');
+  const body = html.match(/<body>([\s\S]*?)<\/body>/)[1];
+  fs.writeFileSync(path.join(root, 'dist/artifact.html'), head.trim() + '\n' + body.trim() + '\n');
   console.log(`built dist/index.html  ${(html.length / 1024).toFixed(0)} KB  in ${Date.now() - t0} ms`);
 }
 

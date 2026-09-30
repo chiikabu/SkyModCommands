@@ -95,6 +95,7 @@ export class Tools {
         if (e.code === 'Enter') this.buildCoaster();
       }
     });
+    this.app.view.rig.touchToolActive = () => !!this.tool;
     this.app.view.rig.shiftWheel = (e) => {
       if (this.tool === 'coaster-track') {
         this.setNodeH(this.nodeH - Math.sign(e.deltaY));

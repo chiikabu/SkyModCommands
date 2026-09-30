@@ -32,7 +32,39 @@ export class CameraRig {
   _bind() {
     const d = this.dom;
     d.addEventListener('contextmenu', (e) => e.preventDefault());
+    // touch: one finger pans (when no tool is active), two fingers pinch-zoom + twist
+    this.touches = new Map();
     d.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') {
+        this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (this.touches.size === 2) this.pinch = this.pinchState();
+        return;
+      }
+    });
+    d.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'touch' || !this.touches.has(e.pointerId)) return;
+      const t = this.touches.get(e.pointerId);
+      const dx = e.clientX - t.x, dy = e.clientY - t.y;
+      t.x = e.clientX;
+      t.y = e.clientY;
+      if (this.touches.size === 1 && !this.touchToolActive?.()) this.panScreen(-dx * 1.4, -dy * 1.4);
+      else if (this.touches.size === 2 && this.pinch) {
+        const p = this.pinchState();
+        this.goalDist = clamp(this.goalDist * (this.pinch.d / Math.max(10, p.d)), 8, 230);
+        this.goalYaw += p.a - this.pinch.a;
+        this.pinch = p;
+      }
+    });
+    const endTouch = (e) => {
+      if (e.pointerType !== 'touch') return;
+      this.touches.delete(e.pointerId);
+      if (this.touches.size < 2) this.pinch = null;
+    };
+    d.addEventListener('pointerup', endTouch);
+    d.addEventListener('pointercancel', endTouch);
+    d.style.touchAction = 'none';
+    d.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch') return;
       if (e.button === 2 || e.button === 1) {
         this.drag = { btn: e.button, x: e.clientX, y: e.clientY, moved: 0 };
         d.setPointerCapture(e.pointerId);
@@ -75,6 +107,10 @@ export class CameraRig {
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
+  }
+  pinchState() {
+    const [a, b] = [...this.touches.values()];
+    return { d: Math.hypot(b.x - a.x, b.y - a.y), a: Math.atan2(b.y - a.y, b.x - a.x) };
   }
   panScreen(dx, dy) {
     const s = this.dist * 0.0016;
