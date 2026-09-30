@@ -26,7 +26,10 @@ export class GameView {
     const quality = settings.quality ?? 2;
     this.quality = quality;
     const r = (this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false }));
-    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality >= 2 ? 2 : quality === 1 ? 1.25 : 1));
+    this.basePR = Math.min(window.devicePixelRatio || 1, quality >= 2 ? 2 : quality === 1 ? 1.25 : 1);
+    this.resScale = 1;
+    this.perf = { ema: 0, t: -3, lowStreak: 0, downgraded: false };
+    r.setPixelRatio(this.basePR);
     r.setSize(window.innerWidth, window.innerHeight, false);
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 1.05;
@@ -62,6 +65,32 @@ export class GameView {
     this.timeOfDay = 0.3;
     this.pathDirty = false;
   }
+  // Dynamic resolution: keep ~50+ fps on slower GPUs by trading pixels, not features.
+  perfTick(dt) {
+    const P = this.perf;
+    if (dt <= 0 || dt > 0.25) return;
+    P.ema = P.ema ? P.ema * 0.94 + dt * 0.06 : dt;
+    P.t += dt;
+    if (P.t < 1.5) return;
+    P.t = 0;
+    if (P.ema > 1 / 44 && this.resScale > 0.55) this.setResScale(this.resScale - 0.1);
+    else if (P.ema > 1 / 44 && !P.downgraded && this.sun.castShadow) {
+      // last resort: smaller shadow map
+      P.downgraded = true;
+      this.sun.shadow.mapSize.set(1024, 1024);
+      if (this.sun.shadow.map) {
+        this.sun.shadow.map.dispose();
+        this.sun.shadow.map = null;
+      }
+    } else if (P.ema < 1 / 58 && this.resScale < 1) this.setResScale(Math.min(1, this.resScale + 0.05));
+  }
+  setResScale(s) {
+    this.resScale = s;
+    const pr = this.basePR * s;
+    this.renderer.setPixelRatio(pr);
+    this.post.composer.setPixelRatio(pr);
+    this.resize();
+  }
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h, false);
@@ -87,10 +116,36 @@ export class GameView {
     this.coasters = new CoasterRenderer(this.content, g);
     for (const c of g.coasters) this.coasters.add(c);
     this.projectiles = new ProjectileRenderer(this.content, g);
+    this.buildFloodlights();
     this.terrain.updatePaths(g);
     if (!this.rig) this.rig = new CameraRig(this.camera, this.canvas, g.world);
     else this.rig.world = g.world;
   }
+  // Stadium floodlights around no-man's land: real spotlights that switch on at dusk.
+  buildFloodlights() {
+    this.floods = [];
+    const pole = new THREE.CylinderGeometry(0.22, 0.35, 18, 8);
+    const head = new THREE.BoxGeometry(3.2, 1.4, 0.6);
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x5c6470, roughness: 0.5, metalness: 0.6 });
+    this.floodLampMat = new THREE.MeshBasicMaterial({ color: 0xfff4d8, toneMapped: false });
+    for (const [x, z] of [[-54, 22], [54, 22], [-54, -22], [54, -22]]) {
+      const gy = this.world.heightAt(x, z);
+      const p = new THREE.Mesh(pole, poleMat);
+      p.position.set(x, gy + 9, z);
+      p.castShadow = true;
+      this.content.add(p);
+      const hd = new THREE.Mesh(head, this.floodLampMat);
+      hd.position.set(x - Math.sign(x) * 0.4, gy + 18.4, z);
+      hd.lookAt(0, 0, z * 0.2);
+      this.content.add(hd);
+      const L = new THREE.SpotLight(0xfff0d0, 0, 0, 0.62, 0.7, 2);
+      L.position.set(x, gy + 18.6, z);
+      L.target.position.set(x * 0.2, 0, z * 0.1);
+      this.content.add(L, L.target);
+      this.floods.push(L);
+    }
+  }
+
   detach() {
     if (!this.content) return;
     this.scene.remove(this.content);
@@ -246,13 +301,17 @@ export class GameView {
     const sunCol = new THREE.Color(1, 0.94, 0.84).lerp(new THREE.Color(1, 0.58, 0.32), sunset);
     const moonCol = new THREE.Color(0.55, 0.65, 1.0);
     this.sun.color.copy(sunCol).lerp(moonCol, night);
-    this.sun.intensity = lerp(3.1 * (1 - sunset * 0.35), 0.55, night);
-    this.hemi.intensity = lerp(0.85, 0.36, night);
+    this.sun.intensity = lerp(3.1 * (1 - sunset * 0.35), 0.8, night);
+    this.hemi.intensity = lerp(0.85, 0.48, night);
+    if (this.floods) {
+      for (const L of this.floods) L.intensity = night * 3800;
+      this.floodLampMat.color.setRGB(1, 0.96, 0.85).multiplyScalar(0.4 + night * 3.2);
+    }
     this.hemi.color.set(0xcfe3ff).lerp(new THREE.Color(0x3a4a7a), night);
     this.hemi.groundColor.set(0x6a5a3a).lerp(new THREE.Color(0x1a1a2a), night);
     const fogDay = new THREE.Color(0xbad4f0).lerp(new THREE.Color(0xf0b890), sunset * 0.6);
     this.scene.fog.color.copy(fogDay).lerp(new THREE.Color(0x0a1024), night);
-    U.rim.value = lerp(0.32, 0.5, night);
+    U.rim.value = lerp(0.32, 0.9, night);
     // shadow light: sun by day, moon by night
     const lightDir = night > 0.5 ? new THREE.Vector3(-sunDir.x, Math.abs(sunDir.y) + 0.5, -sunDir.z).normalize() : sunDir;
     const t = this.rig.target;
@@ -281,6 +340,7 @@ export class GameView {
   frame(dt, alpha) {
     if (!this.game) return;
     const g = this.game;
+    this.perfTick(dt);
     U.time.value += dt;
     this.updateLighting(dt);
     if (this.pathDirty) {
