@@ -263,6 +263,9 @@ export class GameView {
         case 'gameOver':
           this.victoryFireworks = { t: 0, winner: e.winner };
           break;
+        case 'barrage':
+          fx.ring(e.x, this.world.heightAt(e.x, e.z), e.z, 10, e.team === 0 ? 0x7fb3ff : 0xff7a73, 1.4);
+          break;
         case 'splat':
           fx.puff(e.x, 1, e.z, 4, 0xffffff, 0.8, 0.8);
           break;

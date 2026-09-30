@@ -3,7 +3,7 @@
 //  chat feed, banners, floaters, guest thoughts, minimap, tooltips.
 // ─────────────────────────────────────────────────────────────────────────────
 import { h, clear, stars } from './dom.js';
-import { UNIT_TYPES, UNIT_ORDER, BUILDINGS, BUILD_MENU, SUPPLY_CAP, CASTLE_HP, TEAM_COLORS, PATH_COST, HALF_W, PARK_LZ1, MID, DEPLOY_ROWS, TILE, MAX_ROUNDS, COASTER } from '../config.js';
+import { UNIT_TYPES, UNIT_ORDER, BUILDINGS, BUILD_MENU, SUPPLY_CAP, CASTLE_HP, TEAM_COLORS, PATH_COST, HALF_W, PARK_LZ1, MID, DEPLOY_ROWS, TILE, MAX_ROUNDS, COASTER, BARRAGE } from '../config.js';
 import { fmtMoney, fmtTime } from '../util/math.js';
 
 const TABS = [
@@ -224,7 +224,8 @@ export class HUD {
     }
     this.supplyEl = h('div', { class: 'supply' });
     this.readyBtn = h('button', { class: 'btn big readybtn', onclick: () => this.app.ready() }, 'READY!');
-    this.readyBox.append(h('div', { style: { fontSize: '11px', fontWeight: 900, color: 'var(--muted)', letterSpacing: '1px' } }, 'ARMY ORDERS'), st, this.supplyEl, this.readyBtn);
+    this.barrageBtn = h('button', { class: 'btn red hidden', title: 'Once per battle: the castle rains fireworks on a spot you pick (B)', onclick: () => this.app.tools.selectBarrage() }, `🎆 Fireworks barrage ${fmtMoney(BARRAGE.cost)}`);
+    this.readyBox.append(h('div', { style: { fontSize: '11px', fontWeight: 900, color: 'var(--muted)', letterSpacing: '1px' } }, 'ARMY ORDERS'), st, this.supplyEl, this.barrageBtn, this.readyBtn);
     this.root.appendChild(this.readyBox);
     this.updateStance();
   }
@@ -463,6 +464,10 @@ export class HUD {
         this.push(txt, { kind: w === 0 ? 'good' : w === 1 ? 'bad' : 'sys' });
         break;
       }
+      case 'barrage':
+        if (e.team === 1 && !this.spectator) this.push('🎆 Incoming fireworks barrage!', { kind: 'bad', life: 3500 });
+        else if (this.spectator) this.push(`🎆 ${g.teams[e.team].name} calls a fireworks barrage!`, { kind: 'sys', life: 3500 });
+        break;
       case 'wages':
         if (e.team === 0 && !this.spectator) this.push(`Payroll: your veterans were paid ${fmtMoney(e.amount)} in wages.`, { kind: 'sys', life: 6000 });
         break;
@@ -492,7 +497,7 @@ export class HUD {
   tips(round) {
     const T = {
       1: ['🎠 Rides earn money: open the Rides tab and place a Spinning Teacups near a path.', '⚔️ Army tab → pick a unit, then click or drag inside the glowing blue yard.', '✅ Happy? Hit READY (or Enter). The rival army stays hidden until the horn!'],
-      2: ['🔭 Check the Scouting Report (bottom-left): counter what they brought last time.', '🛡️ Popcorn Cannons and Splash Fountains defend your park while earning money.'],
+      2: ['🔭 Check the Scouting Report (bottom-left): counter what they brought last time.', '🛡️ Popcorn Cannons and Splash Fountains defend your park while earning money.', '🎆 Mid-battle, press B (or the barrage button) to rain fireworks on their densest clump — once per battle.'],
       3: ['🎢 Coasters are the best money-makers — try the Coasters tab and ✨ Auto-design.', '💡 Low coaster track through your yard flattens invaders!'],
       4: ['🧠 Mix your army: tanks up front, ranged behind, artillery at the back.', '🛡️ Outnumbered? Switch to Hold to fight under your turrets.'],
     };
@@ -565,6 +570,12 @@ export class HUD {
       this.readyBtn.disabled = !prep || me.ready;
       this.readyBtn.textContent = prep ? (me.ready ? 'Waiting…' : '⚔️ READY!') : g.phase === 'battle' ? 'Battle on!' : '…';
       this.readyBtn.classList.toggle('readybtn', prep && !me.ready);
+      const inBattle = g.phase === 'battle' && g.battleStarted;
+      this.barrageBtn.classList.toggle('hidden', !inBattle);
+      this.readyBtn.classList.toggle('hidden', inBattle);
+      this.barrageBtn.disabled = !g.canBarrage(0);
+      const bt = me.barrageUsed ? '🎆 Barrage used' : `🎆 Fireworks barrage ${fmtMoney(BARRAGE.cost)}`;
+      if (this.barrageBtn.textContent !== bt) this.barrageBtn.textContent = bt;
       this.updateStance();
       // refresh affordability occasionally
       if (Math.abs(me.money - (this._lastMoney || 0)) > 30 || this._lastPhase !== g.phase) {

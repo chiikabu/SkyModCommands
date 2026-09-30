@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import {
   DT, START_MONEY, PREP_TIME, BATTLE_TIME, RAMPAGE_TIME, MAX_ROUNDS, UNIT_TYPES, SUPPLY_CAP, TEAM_COLORS,
-  HALF_W, MID, DEPLOY_ROWS, TILE, BUILDINGS, COASTER, INSURANCE, SURVIVOR_HEAL, PAYROLL, HOME_TURF,
+  HALF_W, MID, DEPLOY_ROWS, TILE, BUILDINGS, COASTER, INSURANCE, SURVIVOR_HEAL, PAYROLL, HOME_TURF, BARRAGE,
 } from '../config.js';
 import { RNG } from '../util/rng.js';
 import { World } from './world.js';
@@ -65,6 +65,7 @@ export class Game {
     this.headless = !!opts.headless;
     this.speed = 1;
     this.roundResult = null;
+    this.barrages = [];
     for (const p of this.parks) p.setupStart();
     this.phase = 'intro';
     this.phaseTime = opts.introTime ?? 0;
@@ -406,6 +407,8 @@ export class Game {
     this.phaseTime = BATTLE_TIME;
     this.battleStarted = false;
     this.battleStartTime = this.time;
+    for (const t of this.teams) t.barrageUsed = false;
+    this.barrages.length = 0;
     this.countdown = 3;
     this.lastDamageTime = this.time + 3;
     this.rampage = -1;
@@ -473,6 +476,44 @@ export class Game {
     this.celebrate = winner;
     this.emit('gameOver', { winner, reason });
     for (const ai of this.ai) if (ai) ai.onGameOver(winner);
+  }
+
+  // ── Park power: fireworks barrage from the castle ──
+  canBarrage(team) {
+    const t = this.teams[team];
+    return this.phase === 'battle' && this.battleStarted && !t.barrageUsed && t.money >= BARRAGE.cost && this.parks[team].castle.hp > 0;
+  }
+  useBarrage(team, x, z) {
+    if (!this.canBarrage(team)) return false;
+    const t = this.teams[team];
+    this.spend(team, BARRAGE.cost, 'power');
+    t.barrageUsed = true;
+    this.barrages.push({ team, x, z, t: 0.9, left: BARRAGE.shots, next: 0 });
+    this.emit('barrage', { team, x, z });
+    return true;
+  }
+  updateBarrages() {
+    for (let i = this.barrages.length - 1; i >= 0; i--) {
+      const b = this.barrages[i];
+      b.t -= DT;
+      if (b.t > 0) continue;
+      b.next -= DT;
+      if (b.next > 0) continue;
+      b.next = 0.13;
+      const castle = this.parks[b.team].castle;
+      const a = this.rng.next() * Math.PI * 2, r = Math.sqrt(this.rng.next()) * BARRAGE.radius;
+      const tx = b.x + Math.cos(a) * r, tz = b.z + Math.sin(a) * r;
+      const f = castle.frame();
+      const side = b.left % 2 ? 1 : -1;
+      const sx = castle.x + f.rx * side * 4.5, sz = castle.z + f.rz * side * 4.5, sy = this.world.heightAt(castle.x, castle.z) + 15;
+      const d = Math.hypot(tx - sx, tz - sz);
+      this.projectiles.fire({
+        type: 'firework', team: b.team, source: castle, sx, sy, sz, tx, ty: this.world.heightAt(tx, tz), tz,
+        time: 1.1 + d / 45, gravity: 9, damage: BARRAGE.damage, splash: BARRAGE.splash, knock: BARRAGE.knock, structMult: 0.3,
+      });
+      this.emit('shot', { x: sx, y: sy, z: sz, kind: 'firework', team: b.team });
+      if (--b.left <= 0) this.barrages.splice(i, 1);
+    }
   }
 
   setReady(team) {
@@ -561,7 +602,8 @@ export class Game {
     this.guests.update();
     // Physics
     this.phys.step();
-    // Projectiles
+    // Projectiles + park powers
+    this.updateBarrages();
     this.projectiles.update();
     // Parks + coasters
     this.parks[0].update();

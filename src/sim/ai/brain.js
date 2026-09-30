@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import {
   UNIT_TYPES, UNIT_ORDER, EFF, BUILDINGS, GRID_W, TERR_ROWS, DEPLOY_ROWS, SUPPLY_CAP, MAX_ROUNDS, TILE, HALF_W, MID,
-  CASTLE_HP, DT, COASTER, ENTRY_FEE,
+  CASTLE_HP, DT, COASTER, ENTRY_FEE, BARRAGE,
 } from '../../config.js';
 import { RNG } from '../../util/rng.js';
 import { PERSONALITIES, DIFFICULTIES } from './personalities.js';
@@ -731,9 +731,35 @@ export class AIPlayer {
     this.plan = this.analyze();
   }
 
+  // Fire the castle's barrage at the juiciest enemy clump (hard AIs wait for a great one).
+  considerBarrage() {
+    const g = this.game;
+    if (!g.canBarrage(this.team)) return;
+    if (this.team_.money < BARRAGE.cost + 150) return;
+    const enemies = g.units[this.enemyTeam].filter((u) => u.alive && !u.flying);
+    let best = null, bv = 0;
+    for (const e of enemies) {
+      let v = 0;
+      for (const f of enemies) {
+        const d = Math.hypot(f.x - e.x, f.z - e.z);
+        if (d < BARRAGE.radius) v += f.def.cost * (1 - d / (BARRAGE.radius * 1.4));
+      }
+      // bonus for threats inside our territory
+      if (e.z * sgn(this.team) > MID) v *= 1.3;
+      if (v > bv) { bv = v; best = e; }
+    }
+    const want = 1400 - this.d.micro * 500 + this.rng.next() * 300 * this.d.noise * 4;
+    const late = g.phaseTime < 40;
+    if (best && (bv > want || (late && bv > want * 0.6))) {
+      const [vx, vz] = best.velocity();
+      g.useBarrage(this.team, best.x + vx * 1.2, best.z + vz * 1.2);
+    }
+  }
+
   battleThink() {
     const g = this.game;
     if (!g.battleStarted) return;
+    if (this.rng.next() < 0.3 + 0.7 * this.d.micro) this.considerBarrage();
     const me = this.team, en = this.enemyTeam;
     let myV = 0, enV = 0, myIn = 0, n = 0;
     for (const u of g.units[me]) if (u.alive) {

@@ -254,6 +254,9 @@ export class App {
       case 'Home':
         this.view.rig.focus(0, 52, 95, 0);
         break;
+      case 'KeyB':
+        if (this.mode === 'play' && this.tools) this.tools.selectBarrage();
+        break;
       case 'KeyC': {
         const c = g && (this.hud?.selected?.coaster || g.coasters.find((c) => c.team === 0));
         if (c) this.view.rig.setRide(c);
@@ -348,9 +351,9 @@ export class App {
         h('div', { class: 'help-card', html: '<b>🎢 Build a park.</b> Rides and shops attract guests who pay entry fees and tickets. Paths connect automatically. Scenery raises your park rating, which brings more (and richer) guests.' }),
         h('div', { class: 'help-card', html: '<b>⚔️ Raise an army.</b> During <b>Planning</b>, pick a unit in the Army tab and click (or drag to paint) inside your blue deployment yard. Right-click a unit to dismiss it for a refund.' }),
         h('div', { class: 'help-card', html: '<b>🛡️ Rides fight too.</b> Popcorn Cannons lob explosive tubs, Splash Fountains hose invaders away, Drop Towers send shockwaves, Pirate Ships smack anyone underneath, the Human Cannon fires guests at the enemy, and low coaster track flattens trespassers.' }),
-        h('div', { class: 'help-card', html: '<b>🏰 Win the war.</b> Hit <b>READY</b> to start the battle. Choose <b>Charge</b> to attack or <b>Hold</b> to defend under your turrets (you can switch mid-battle). Survivors return home. Wreck the rival castle to win.' }),
+        h('div', { class: 'help-card', html: '<b>🏰 Win the war.</b> Hit <b>READY</b> to start the battle. Choose <b>Charge</b> to attack or <b>Hold</b> to defend under your turrets (you can switch mid-battle). Once per battle you can call a <b>🎆 Fireworks Barrage</b> from your castle onto any spot. Survivors return home. Wreck the rival castle to win.' }),
         h('div', { class: 'help-card', html: '<b>🧠 Know your rival.</b> The AI scouts your army each round and counters it. Mix your units, read the Scouting Report, and counter their counters. Lost units pay out 40% insurance.' }),
-        h('div', { class: 'help-card', html: '<b>🎮 Controls.</b> <span class="kbd">WASD</span> pan · right-drag rotate · wheel zoom · <span class="kbd">Q</span><span class="kbd">E</span> rotate · <span class="kbd">R</span> rotate building · <span class="kbd">Space</span> pause · <span class="kbd">1</span>-<span class="kbd">4</span> speed/slow-mo · <span class="kbd">Enter</span> ready · <span class="kbd">H</span> hide HUD · <span class="kbd">C</span> ride your coaster · <span class="kbd">Esc</span> cancel/menu' }),
+        h('div', { class: 'help-card', html: '<b>🎮 Controls.</b> <span class="kbd">WASD</span> pan · right-drag rotate · wheel zoom · <span class="kbd">Q</span><span class="kbd">E</span> rotate · <span class="kbd">R</span> rotate building · <span class="kbd">Space</span> pause · <span class="kbd">1</span>-<span class="kbd">4</span> speed/slow-mo · <span class="kbd">Enter</span> ready · <span class="kbd">H</span> hide HUD · <span class="kbd">C</span> ride your coaster · <span class="kbd">B</span> fireworks barrage · <span class="kbd">Esc</span> cancel/menu' }),
       ),
       h('h3', {}, 'Units'), units,
       h('div', { class: 'row end' }, h('button', { class: 'btn', onclick: back }, 'Got it!')),

@@ -446,6 +446,10 @@ export class AudioSys {
       case 'fight':
         this.horn();
         break;
+      case 'barrage':
+        // rising whistle
+        for (let i = 0; i < 3; i++) this.tone(t + i * 0.18, 700 + i * 120, 0.5, 'sine', 0.12, 0.02, 0.2, 0, S, 1800 + i * 200);
+        break;
       case 'phase':
         if (e.phase === 'prep') this.setMode('prep');
         else if (e.phase === 'battle') this.setMode('battle');

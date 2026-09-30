@@ -22,7 +22,11 @@ flatten invaders, and topple the rival park's castle — against genuinely schem
 - **Competent AI rivals** — four personalities × four difficulties. They scout your armies,
   counter-pick, budget between economy/army/defense by payback time, design their own coasters,
   deploy in role-based formations aimed at your weakest lane, pick Charge/Hold stances and
-  change them mid-battle, repair, and taunt you.
+  change them mid-battle, call fireworks barrages on your densest clumps, repair, and taunt you.
+- **Fireworks Barrage** — once per battle, pay to have your castle rain fireworks on any spot.
+- **Comeback mechanics** — fallen units pay out insurance, big armies cost wages, you hit harder
+  on home turf, and survivors heal between rounds, so a bad round is never the end.
+- **Night battles** — the day/night cycle rolls on; stadium floodlights switch on after dusk.
 - **Watch mode** — AI vs AI with an automatic director camera.
 - **Shaders & post** — procedural sky with clouds/stars, painterly terrain + cobblestone paths,
   depth-tinted water with foam, chasing light bulbs, day/night cycle with light pools, bloom,
@@ -33,12 +37,13 @@ flatten invaders, and topple the rival park's castle — against genuinely schem
 ## Controls
 | Action | Input |
 | --- | --- |
-| Pan / rotate / zoom | WASD or edge-scroll · right-drag · mouse wheel · Q/E |
+| Pan / rotate / zoom | WASD or edge-scroll · right-drag · mouse wheel · Q/E (touch: drag, pinch, twist) |
 | Place unit / building | Pick from the dock, left-click (drag to paint) · R rotates |
 | Dismiss unit / cancel tool | Right-click |
 | Start battle | READY button or Enter |
 | Pause / speed / slow-mo | Space · 1 2 3 · 4 |
 | Coaster node height | Shift + wheel or Z / X · Backspace undo · Enter build |
+| Fireworks barrage (during battle) | Barrage button or B, then click a spot |
 | Ride your coaster / hide HUD | C · H |
 
 ## Development

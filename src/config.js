@@ -42,6 +42,7 @@ export const INSURANCE = 0.4; // share of lost unit value refunded after each ba
 export const SURVIVOR_HEAL = 0.4;
 export const PAYROLL = 0.1; // wages per round as a share of the surviving army's value
 export const HOME_TURF = 1.15; // damage bonus when fighting inside your own territory
+export const BARRAGE = { cost: 300, shots: 10, radius: 5, damage: 34, splash: 2.8, knock: 8 };
 
 // ── Units ────────────────────────────────────────────────────────────────────
 // role drives battle AI; attack.kind: melee | ranged | lob | ram | stomp

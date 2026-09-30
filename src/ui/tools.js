@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import * as THREE from 'three';
 import { h, clear } from './dom.js';
-import { UNIT_TYPES, BUILDINGS, TILE, HALF_W, MID, GRID_W, TERR_ROWS, COASTER, PATH_COST } from '../config.js';
+import { UNIT_TYPES, BUILDINGS, TILE, HALF_W, MID, GRID_W, TERR_ROWS, COASTER, PATH_COST, BARRAGE } from '../config.js';
 import { FACTORIES } from '../render/models.js';
 import { MAT } from '../render/materials.js';
 import { rotatedSize, entranceTile } from '../sim/park.js';
@@ -42,6 +42,23 @@ export class Tools {
     this.scene.add(this.pole);
     this.nodeMarkers = new THREE.Group();
     this.scene.add(this.nodeMarkers);
+    // fireworks barrage reticle: outer blast ring + inner pulse + crosshair ticks
+    this.aim = new THREE.Group();
+    const aimMat = new THREE.MeshBasicMaterial({ color: 0xff6a4d, toneMapped: false, transparent: true, opacity: 0.9, depthWrite: false });
+    const outer = new THREE.Mesh(new THREE.TorusGeometry(BARRAGE.radius, 0.1, 6, 72), aimMat);
+    outer.rotation.x = Math.PI / 2;
+    this.aimPulse = new THREE.Mesh(new THREE.TorusGeometry(1, 0.08, 6, 48), aimMat);
+    this.aimPulse.rotation.x = Math.PI / 2;
+    this.aim.add(outer, this.aimPulse);
+    for (let i = 0; i < 4; i++) {
+      const tick = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 1.3), aimMat);
+      const a = (i * Math.PI) / 2;
+      tick.position.set(Math.sin(a) * (BARRAGE.radius - 0.9), 0, Math.cos(a) * (BARRAGE.radius - 0.9));
+      tick.rotation.y = a;
+      this.aim.add(tick);
+    }
+    this.aim.visible = false;
+    this.scene.add(this.aim);
     this._bind();
   }
   get game() {
@@ -112,6 +129,7 @@ export class Tools {
     this.buildType = null;
     this.clearGhost();
     this.ring.visible = false;
+    this.aim.visible = false;
     this.ghostUnit.visible = false;
     this.arrow.visible = false;
     this.pole.visible = false;
@@ -155,6 +173,15 @@ export class Tools {
     this.tool = remove ? 'unpath' : 'path';
     this.app.view.terrain.uniforms.uGrid.value = 1;
     this.hud.renderItems();
+  }
+  selectBarrage() {
+    if (!this.game.canBarrage(0)) {
+      this.app.audio.ui('error');
+      return;
+    }
+    this.cancel();
+    this.tool = 'barrage';
+    this.app.audio.ui('click');
   }
   selectDemolish() {
     this.cancel();
@@ -250,6 +277,7 @@ export class Tools {
       this.hint(null);
       if (this.ghost && this.tool !== 'coaster-track') this.ghost.visible = false;
       this.ring.visible = false;
+      this.aim.visible = false;
       this.ghostUnit.visible = false;
       this.arrow.visible = false;
       tu.uHighlight.value.set(0, 0, 0, 0);
@@ -302,6 +330,14 @@ export class Tools {
       } else this.arrow.visible = false;
       if (type === 'station') this.hint(chk.ok ? 'Click to place the station · R to rotate' : chk.reason, !chk.ok);
       else this.hint(chk.ok ? `${def.name} · ${fmtMoney(chk.cost)}${chk.pathTiles && chk.pathTiles.length ? ' (incl. ' + chk.pathTiles.length + ' path)' : ''} · R rotate` : chk.reason, !chk.ok);
+    } else if (this.tool === 'barrage') {
+      this.aim.visible = true;
+      this.aim.position.set(p.x, p.y + 0.15, p.z);
+      this.aim.rotation.y += 0.01;
+      const k = (performance.now() / 900) % 1;
+      this.aimPulse.scale.setScalar(0.5 + k * (BARRAGE.radius - 0.5));
+      this.hint(`Click to call the fireworks barrage (${fmtMoney(BARRAGE.cost)}) · right-click cancels`, true);
+      if (!this.game.canBarrage(0)) this.cancel();
     } else if (this.tool === 'path' || this.tool === 'unpath') {
       const gx = Math.floor((p.x + HALF_W) / TILE), gz = Math.floor((p.z - MID) / TILE);
       tu.uHighlight.value.set(-HALF_W + gx * TILE, MID + gz * TILE, -HALF_W + (gx + 1) * TILE, MID + (gz + 1) * TILE);
@@ -381,6 +417,11 @@ export class Tools {
       return;
     }
     if (!p) return;
+    if (this.tool === 'barrage') {
+      if (g.useBarrage(0, p.x, p.z)) this.app.audio.ui('ready');
+      this.cancel();
+      return;
+    }
     if (this.tool === 'unit') this.placeUnit(p);
     else if (this.tool === 'build') {
       const s = this.snap(this.buildType, p, this.rot);
