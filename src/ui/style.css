@@ -83,6 +83,12 @@ input.txt { background: rgba(0,0,0,.3); border: 1px solid var(--line); border-ra
 #hud > * { pointer-events: auto; }
 .topbar { position: absolute; top: calc(16px + env(safe-area-inset-top, 0px)); left: 16px; right: 16px; flex-wrap: wrap; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; pointer-events: none; }
 .topbar > * { pointer-events: auto; }
+/* informational overlays must never swallow clicks meant for the park
+   (needs #ui specificity to beat the blanket "#ui *" rule above) */
+#ui .feed, #ui .feed *, #ui .banner, #ui .banner *, #ui .floater, #ui .thought, #ui .thought *,
+#ui .tooltip, #ui .tooltip *, #ui .cursorhint, #ui .pausebadge, #ui .topbar, #ui .rightcol, #ui .dock { pointer-events: none; }
+#ui .topbar > *, #ui .rightcol > *, #ui .dock > * { pointer-events: auto; }
+#ui .topbar > .rightcol { pointer-events: none; }
 .stats { display: flex; gap: 6px; padding: 8px; align-items: center; }
 .stat { display: flex; flex-direction: column; padding: 4px 10px; min-width: 70px; }
 .stat .v { font-family: var(--display); font-size: 22px; line-height: 1.05; letter-spacing: .5px; }

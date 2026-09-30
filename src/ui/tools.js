@@ -79,6 +79,10 @@ export class Tools {
       if (!this.game || this.app.hud?.spectator && e.button === 0 && !this.tool) {
         // spectators can still select
       }
+      // touch taps arrive without a preceding pointermove: aim at the tap itself
+      this.mouse.x = e.clientX;
+      this.mouse.y = e.clientY;
+      this.mouse.onCanvas = true;
       if (e.button === 0) {
         this.mouse.down = true;
         this.lastPaint = null;

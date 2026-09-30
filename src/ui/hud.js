@@ -74,7 +74,7 @@ export class HUD {
     this.cb0 = this.castleBar(0);
     this.cb1 = this.castleBar(1);
     center.append(h('div', { class: 'phase' }, this.elRound, this.elPhase, this.elTimer), h('div', { class: 'castles' }, this.cb0.el, h('div', { class: 'vs' }, 'VS'), this.cb1.el));
-    const right = h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' } });
+    const right = h('div', { class: 'rightcol', style: { display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' } });
     this.ctrl = h('div', { class: 'panel controls' });
     const sp = (label, val, title) => {
       const b = h('button', { class: 'ibtn', title, onclick: () => this.app.setSpeed(val) }, label);
