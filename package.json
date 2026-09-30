@@ -1,0 +1,16 @@
+{
+  "name": "coaster-carnage",
+  "version": "1.0.0",
+  "description": "Totally Accurate Theme Park Warfare - build a theme park, raise a wobbly army, crush the rival park.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "dev": "node tools/build.mjs --watch",
+    "sim": "node tools/headless.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "three": "^0.186.1"
+  }
+}
