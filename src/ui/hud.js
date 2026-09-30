@@ -123,6 +123,7 @@ export class HUD {
   }
   renderItems() {
     const g = this.game;
+    this.hideTip();
     const el = clear(this.itemsEl);
     const money = g.teams[0].money;
     const tools = this.app.tools;
@@ -208,7 +209,7 @@ export class HUD {
     this.tooltip.style.top = Math.max(8, r.top - th - 10) + 'px';
   }
   hideTip() {
-    this.tooltip.classList.add('hidden');
+    if (this.tooltip) this.tooltip.classList.add('hidden');
   }
 
   buildReady() {
@@ -431,6 +432,7 @@ export class HUD {
       case 'phase':
         if (e.phase === 'prep') {
           this.banner('ROUND ' + e.round, e.round === 1 ? 'Build your park · Deploy your army' : 'Plan · Build · Deploy', 2400);
+          if (!this.spectator) this.tips(e.round);
           if (!this.spectator) {
             this.renderScout();
             this.scoutEl.classList.remove('hidden');
@@ -461,6 +463,9 @@ export class HUD {
         this.push(txt, { kind: w === 0 ? 'good' : w === 1 ? 'bad' : 'sys' });
         break;
       }
+      case 'wages':
+        if (e.team === 0 && !this.spectator) this.push(`Payroll: your veterans were paid ${fmtMoney(e.amount)} in wages.`, { kind: 'sys', life: 6000 });
+        break;
       case 'chat':
         this.push(e.text, { who: e.avatar + ' ' + e.name, color: e.color });
         break;
@@ -481,6 +486,19 @@ export class HUD {
         if (Math.random() < 0.35) this.thought(e.guest, e.text);
         break;
     }
+  }
+
+  // First-game coaching, a few lines per round.
+  tips(round) {
+    const T = {
+      1: ['🎠 Rides earn money: open the Rides tab and place a Spinning Teacups near a path.', '⚔️ Army tab → pick a unit, then click or drag inside the glowing blue yard.', '✅ Happy? Hit READY (or Enter). The rival army stays hidden until the horn!'],
+      2: ['🔭 Check the Scouting Report (bottom-left): counter what they brought last time.', '🛡️ Popcorn Cannons and Splash Fountains defend your park while earning money.'],
+      3: ['🎢 Coasters are the best money-makers — try the Coasters tab and ✨ Auto-design.', '💡 Low coaster track through your yard flattens invaders!'],
+      4: ['🧠 Mix your army: tanks up front, ranged behind, artillery at the back.', '🛡️ Outnumbered? Switch to Hold to fight under your turrets.'],
+    };
+    const list = T[round];
+    if (!list) return;
+    list.forEach((t, i) => setTimeout(() => this.push(t, { kind: 'sys', life: 11000 }), 2600 + i * 2400));
   }
 
   // ── Per-frame update ──

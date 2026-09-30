@@ -325,7 +325,7 @@ export class BuildingRenderer {
     this.poolMat.opacity = night * 0.55;
     this.pools.visible = night > 0.05;
     this.lampGlowMat.color.setScalar(0.8 + night * 3.5);
-    MAT.window.color.setRGB(1, 0.82, 0.48).multiplyScalar(0.7 + night * 2.8);
+    MAT.window.color.setRGB(1, 0.82, 0.48).multiplyScalar(0.55 + night * 1.25);
     const now = performance.now();
     for (const rec of this.items.values()) {
       const b = rec.b;
@@ -352,6 +352,20 @@ export class BuildingRenderer {
         }
       }
       if (b.ruined) {
+        if (b.type === 'castle') {
+          // the grand collapse: sink, tilt, burn
+          rec.fall = Math.min(1, (rec.fall || 0) + dt / 3.2);
+          const f = rec.fall * rec.fall;
+          rec.wrap.position.y = -f * 9;
+          rec.wrap.rotation.z = f * 0.12;
+          rec.wrap.rotation.x = f * 0.06;
+          if (rec.fall < 1 || Math.random() < dt * 4) {
+            this.fx.puff(b.x + (Math.random() - 0.5) * 12, 2 + Math.random() * 6, b.z + (Math.random() - 0.5) * 12, 2, 0x5a524a, 3, 2.6, 2);
+            this.fx.fire(b.x + (Math.random() - 0.5) * 10, 1 + Math.random() * 4, b.z + (Math.random() - 0.5) * 10, 3, 2.2);
+            if (rec.fall < 1 && Math.random() < dt * 10) this.fx.burstDebris(b.x, 6, b.z, 4);
+          }
+          continue;
+        }
         rec.smokeT -= dt;
         if (rec.smokeT <= 0) {
           rec.smokeT = 0.5;

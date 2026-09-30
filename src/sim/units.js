@@ -238,7 +238,7 @@ export class UnitSystem {
     const ux = u.x, uz = u.z;
     const role = u.role;
     const atk = def.attack;
-    const range = atk.range || (atk.reach || 1.5) * def.scale;
+    const range = atk.range || atk.reach || 1.5;
     const sense = role === 'artillery' ? 58 : role === 'cavalry' ? 60 : role === 'ranged' ? 40 : role === 'boss' ? 40 : 34;
     const pref = PREF[role] || {};
     let best = null, bestScore = 0;
@@ -293,15 +293,31 @@ export class UnitSystem {
     }
     u.target = null;
     u.targetIsUnit = false;
-    // No enemy units: structures (charge stance only, or structures in range when holding)
+    // No enemy units: structures. Siege logic — silence nearby defenses that are
+    // shooting at us, otherwise head for the castle; wreck rides only when they're
+    // right in the way (or when the castle is out of reach).
     if (role === 'support') return;
     let bs = null, bsd = 1e9;
+    const castle = g.parks[1 - u.team].castle;
+    const cd = castle && castle.hp > 0 ? Math.hypot(castle.x - ux, castle.z - uz) - castle.radius : 1e9;
     for (const b of g.buildings) {
       if (b.team === u.team || !b.targetable || b.hp <= 0) continue;
       const dd = Math.hypot(b.x - ux, b.z - uz) - b.radius;
-      const limit = stance === 'hold' ? (atk.range || 3) : 14;
+      let limit, pr;
+      if (stance === 'hold') {
+        limit = atk.range || 3;
+        pr = 1;
+      } else if (b.type === 'castle') {
+        limit = 60;
+        pr = 0.35;
+      } else if (b.def.combat || b.coaster) {
+        limit = 11;
+        pr = 0.5;
+      } else {
+        limit = cd < 45 ? 2.5 : 12;
+        pr = 1;
+      }
       if (dd > limit) continue;
-      const pr = b.def.combat ? 0.55 : b.type === 'castle' ? 0.8 : 1;
       if (dd * pr < bsd) {
         bsd = dd * pr;
         bs = b;
@@ -358,7 +374,7 @@ export class UnitSystem {
         this.followField(u, speed * 0.8);
         mvx = rd.vx; mvz = rd.vz;
       }
-      if (near && nd < atk.reach * def.scale + 0.6) {
+      if (near && nd < atk.reach + 0.6) {
         faceX = near.x - ux; faceZ = near.z - uz;
         if (u.cooldown <= 0 && !rd.anim) this.startAttack(u, near);
       } else if (near) {
@@ -371,7 +387,7 @@ export class UnitSystem {
       faceX = dx; faceZ = dz;
       const kind = atk.kind;
       if (kind === 'melee') {
-        const reach = atk.reach * def.scale + t.radius + 0.1;
+        const reach = atk.reach + t.radius + 0.1;
         if (d > reach * 0.85) {
           this.steerTo(u, t.x, t.z, speed);
           mvx = rd.vx; mvz = rd.vz;
@@ -404,8 +420,8 @@ export class UnitSystem {
           mvx = rd.vx; mvz = rd.vz;
         } else if (d < minR + 1) {
           mvx = -nx * speed; mvz = -nz * speed;
-        } else if (u.role === 'skirmisher' && d > range * 0.7) {
-          mvx = nx * speed * 0.5; mvz = nz * speed * 0.5;
+        } else if (u.role === 'skirmisher' && (d > range * 0.55 || (t.def.attack.minRange && d > t.def.attack.minRange * 0.6))) {
+          mvx = nx * speed * 0.7; mvz = nz * speed * 0.7;
         }
         if (d <= range && d >= minR && u.cooldown <= 0 && !rd.anim) this.startAttack(u, t);
       }
@@ -418,9 +434,10 @@ export class UnitSystem {
       }
       if (cp) {
         faceX = cp.x - ux; faceZ = cp.z - uz;
-        const reach = atk.kind === 'melee' ? atk.reach * def.scale + 0.45 : atk.range || 3;
+        const reach = atk.kind === 'melee' ? atk.reach + 0.45 : atk.range || 3;
         if (cp.d > reach * 0.8) {
-          this.steerTo(u, cp.x, cp.z, speed, t);
+          if (t.type === 'castle' && cp.d > 6) this.followField(u, speed, g.castleFields[u.team]);
+          else this.steerTo(u, cp.x, cp.z, speed, t);
           mvx = rd.vx; mvz = rd.vz;
         }
         if (cp.d <= reach && u.cooldown <= 0 && !rd.anim) this.startAttack(u, t);
@@ -501,10 +518,10 @@ export class UnitSystem {
     rd.vz = dz * speed;
   }
 
-  followField(u, speed) {
+  followField(u, speed, field = null) {
     const g = this.game;
     const rd = u.rd;
-    const f = g.fields[u.team];
+    const f = field || g.castleFields[u.team] || g.fields[u.team];
     const dir = f ? f.direction(u.x, u.z, this.tmp) : null;
     let dx, dz;
     if (dir) {
@@ -555,7 +572,7 @@ export class UnitSystem {
             const r = colliderDistance(c, ux, uz);
             if (!cp || r.d < cp.d) cp = r;
           }
-          if (cp && cp.d <= atk.reach * def.scale + 0.9) {
+          if (cp && cp.d <= atk.reach + 0.9) {
             g.damageBuilding(t, atk.damage * (atk.structMult || 1) * dmgMul, u, cp.x, cp.z);
             if (atk.splash) g.splash(u.team, cp.x, cp.z, atk.splash, atk.damage * dmgMul * 0.8, atk.knock, u, 'slam');
           }
@@ -564,9 +581,9 @@ export class UnitSystem {
       }
       if (!t.alive) return;
       const d = Math.hypot(t.x - ux, t.z - uz);
-      const reach = atk.reach * def.scale + t.radius + 0.5;
+      const reach = atk.reach + t.radius + 0.5;
       if (atk.splash) {
-        const ix = ux + fx * atk.reach * def.scale * 0.75, iz = uz + fz * atk.reach * def.scale * 0.75;
+        const ix = ux + fx * atk.reach * 0.7, iz = uz + fz * atk.reach * 0.7;
         g.splash(u.team, ix, iz, atk.splash, atk.damage * dmgMul, atk.knock, u, atk.anim === 'stomp' ? 'stomp' : 'slam');
         if (atk.anim === 'stomp' || def.scale > 1.1) g.emit('shake', { x: ix, z: iz, power: atk.anim === 'stomp' ? 0.9 : 0.35 });
         return;
@@ -750,7 +767,7 @@ export class UnitSystem {
           const power = v.speed / def.speed;
           g.damageUnit(o, def.attack.damage * power * (u.buff > 0 ? 1.3 : 1), u, fx, 0.55, fz, def.attack.knock * (0.5 + power), NECK);
           g.emit('bump', { x: v.x, z: v.z, power: v.speed });
-          v.speed *= 0.75;
+          v.speed *= 0.62;
           if (u.targetIsUnit && u.target === o) v.pass = 0.9;
         } else if (rd.kind === 'unit' && o.team === u.team) {
           // nudge friends
@@ -794,6 +811,7 @@ export class UnitSystem {
     u.rd.targetMuscle = 0;
     u.rd.muscle = 0;
     g.phys.setVelocity(u.rd, vx, vy, vz);
+    u.rd.noDamp = true;
     u.flying = true;
     u.flyTime = 0;
     g.emit('cannon', { x: u.x, y: u.y, z: u.z, team: u.team, vx, vy, vz });
@@ -819,6 +837,7 @@ export class UnitSystem {
     if (u.flyTime > 5) impact = true;
     if (impact) {
       u.flying = false;
+      u.rd.noDamp = false;
       const L = u.def.launch;
       g.splash(u.team, p.x[k], p.z[k], L.splash, L.damage * (u.buff > 0 ? 1.3 : 1), L.knock, u, 'cannonball');
       g.emit('explosion', { x: p.x[k], y: gy + 0.3, z: p.z[k], size: 1.2, kind: 'confetti' });

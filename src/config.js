@@ -27,19 +27,21 @@ export const TEAM_COLORS = [
 ];
 
 export const START_MONEY = 4200;
-export const CASTLE_HP = 9000;
-export const MAX_ROUNDS = 14;
+export const CASTLE_HP = 12000;
+export const MAX_ROUNDS = 12;
 export const SUPPLY_CAP = 48;
-export const PREP_TIME = 50; // seconds of game time
-export const BATTLE_TIME = 95;
-export const RAMPAGE_TIME = 22; // time survivors may rampage after wiping the enemy army
+export const PREP_TIME = 42; // seconds of game time
+export const BATTLE_TIME = 85;
+export const RAMPAGE_TIME = 25; // time survivors may rampage after wiping the enemy army
 export const ENTRY_FEE = 18;
-export const MAX_GUESTS = 64;
+export const MAX_GUESTS = 80;
 
 // Castle's own defence (fireworks battery)
-export const CASTLE_DEFENSE = { range: 34, damage: 38, splash: 2.6, cooldown: 1.15, knock: 7 };
+export const CASTLE_DEFENSE = { range: 36, damage: 42, splash: 2.8, cooldown: 1.1, knock: 7 };
 export const INSURANCE = 0.4; // share of lost unit value refunded after each battle
 export const SURVIVOR_HEAL = 0.4;
+export const PAYROLL = 0.1; // wages per round as a share of the surviving army's value
+export const HOME_TURF = 1.15; // damage bonus when fighting inside your own territory
 
 // ── Units ────────────────────────────────────────────────────────────────────
 // role drives battle AI; attack.kind: melee | ranged | lob | ram | stomp
@@ -47,7 +49,7 @@ export const UNIT_TYPES = {
   janitor: {
     name: 'Janitor', icon: '🧹', cost: 60, supply: 1, hp: 100, speed: 3.4, scale: 1.0,
     role: 'melee',
-    attack: { kind: 'melee', anim: 'swing', reach: 1.7, damage: 15, cooldown: 1.0, knock: 3.5, structMult: 0.7 },
+    attack: { kind: 'melee', anim: 'swing', reach: 1.7, damage: 12, cooldown: 1.0, knock: 3.5, structMult: 0.7 },
     weapon: 'mop', look: { shirt: 'team', pants: 0x4d5566, hat: 'cap', skin: 'any' },
     desc: 'Cheap, cheerful, disposable. Swarms anything that stands still.',
   },
@@ -59,36 +61,36 @@ export const UNIT_TYPES = {
     desc: 'Carnival sharpshooter. Kites melee, shreds slow tanks. Fragile.',
   },
   clown: {
-    name: 'Pie Clown', icon: '🤡', cost: 140, supply: 1, hp: 115, speed: 4.6, scale: 0.95,
+    name: 'Pie Clown', icon: '🤡', cost: 140, supply: 1, hp: 130, speed: 5.0, scale: 0.95,
     role: 'skirmisher',
-    attack: { kind: 'ranged', anim: 'throw', range: 10, damage: 12, cooldown: 1.9, projSpeed: 16, proj: 'pie', stun: 1.5, knock: 2.5, structMult: 0.3 },
+    attack: { kind: 'ranged', anim: 'throw', range: 8, damage: 15, cooldown: 1.7, projSpeed: 16, proj: 'pie', stun: 1.8, splash: 1.4, knock: 2.5, structMult: 0.3 },
     weapon: 'none', look: { shirt: 'team', pants: 'team2', hat: 'clownhair', face: 0xffffff, nose: true, skin: 'pale' },
     desc: 'Fast pie-flinger. Stuns targets and dives backlines.',
   },
   mascot: {
-    name: 'Mascot Bruiser', icon: '🐻', cost: 230, supply: 2, hp: 440, speed: 2.7, scale: 1.3,
+    name: 'Mascot Bruiser', icon: '🐻', cost: 230, supply: 2, hp: 480, speed: 2.7, scale: 1.3,
     role: 'tank',
-    attack: { kind: 'melee', anim: 'punch', reach: 1.5, damage: 24, cooldown: 0.85, knock: 6, structMult: 0.8 },
+    attack: { kind: 'melee', anim: 'punch', reach: 1.9, damage: 25, cooldown: 0.85, knock: 6, splash: 0.9, structMult: 0.8 },
     weapon: 'none', look: { shirt: 'fur', pants: 'fur', hat: 'bearhead', fur: 0x8a5a33, bib: 'team', skin: 'fur' },
     desc: 'Big fuzzy wall. Soaks damage so your backline can work.',
   },
   ringmaster: {
     name: 'Ringmaster', icon: '🎩', cost: 280, supply: 1, hp: 160, speed: 3.0, scale: 1.0,
     role: 'support',
-    attack: { kind: 'melee', anim: 'whip', reach: 3.2, damage: 11, cooldown: 0.9, knock: 2, structMult: 0.4 },
+    attack: { kind: 'melee', anim: 'whip', reach: 3.2, damage: 15, cooldown: 0.9, knock: 2.5, structMult: 0.4 },
     aura: { radius: 10, damage: 1.3, speed: 1.2, regen: 4 },
     weapon: 'whip', look: { shirt: 'team', coat: true, pants: 0xf5f0e6, hat: 'tophat', skin: 'any' },
     desc: 'Rallies nearby allies: +30% damage, +20% speed, slow regen.',
   },
   bumper: {
-    name: 'Bumper Car', icon: '🚗', cost: 300, supply: 2, hp: 300, speed: 10.5, scale: 1.0,
+    name: 'Bumper Car', icon: '🚗', cost: 320, supply: 2, hp: 230, speed: 10.5, scale: 1.0,
     role: 'cavalry', vehicle: true,
-    attack: { kind: 'ram', damage: 42, knock: 13, structMult: 0.8, cooldown: 0.6 },
+    attack: { kind: 'ram', damage: 34, knock: 9, structMult: 0.8, cooldown: 0.6 },
     weapon: 'none', look: { shirt: 'team', pants: 0x333333, hat: 'helmet', skin: 'any' },
     desc: 'Rams through lines and hunts ranged units. Loves a flank.',
   },
   cannonball: {
-    name: 'Human Cannonball', icon: '💥', cost: 240, supply: 1, hp: 120, speed: 3.3, scale: 1.0,
+    name: 'Human Cannonball', icon: '💥', cost: 210, supply: 1, hp: 120, speed: 3.3, scale: 1.0,
     role: 'assassin',
     launch: { range: 72, damage: 75, splash: 3.4, knock: 12 },
     attack: { kind: 'melee', anim: 'punch', reach: 1.3, damage: 13, cooldown: 0.9, knock: 3, structMult: 0.5 },
@@ -96,23 +98,23 @@ export const UNIT_TYPES = {
     desc: 'Fired over the lines at battle start. Crashes into artillery.',
   },
   strongman: {
-    name: 'Strongman', icon: '🔨', cost: 420, supply: 2, hp: 470, speed: 2.4, scale: 1.15,
+    name: 'Strongman', icon: '🔨', cost: 390, supply: 2, hp: 540, speed: 2.5, scale: 1.15,
     role: 'heavy',
-    attack: { kind: 'melee', anim: 'slam', reach: 2.3, damage: 78, cooldown: 2.3, knock: 13, splash: 1.9, structMult: 1.6 },
+    attack: { kind: 'melee', anim: 'slam', reach: 2.5, damage: 95, cooldown: 2.2, knock: 13, splash: 2.0, structMult: 1.6 },
     weapon: 'mallet', look: { shirt: 'stripes', pants: 0x222222, hat: 'mustache', skin: 'tan' },
     desc: 'High-striker mallet. Splash damage flattens crowds and walls.',
   },
   cannoneer: {
     name: 'Popcorn Cannoneer', icon: '🍿', cost: 360, supply: 2, hp: 95, speed: 2.3, scale: 1.0,
     role: 'artillery',
-    attack: { kind: 'lob', anim: 'aim', range: 44, minRange: 7, damage: 52, splash: 3.6, cooldown: 4.2, projSpeed: 24, proj: 'popcorn', knock: 9, structMult: 1.0 },
+    attack: { kind: 'lob', anim: 'aim', range: 44, minRange: 7, damage: 46, splash: 3.5, cooldown: 4.5, projSpeed: 24, proj: 'popcorn', knock: 9, structMult: 1.0 },
     weapon: 'popgun', look: { shirt: 'team', pants: 0x7a4a2a, hat: 'chef', skin: 'any' },
     desc: 'Lobs exploding popcorn tubs. Devastating vs clumps. Needs protecting.',
   },
   giant: {
-    name: 'Inflatable Giant', icon: '🎈', cost: 1500, supply: 6, hp: 3000, speed: 1.9, scale: 2.7,
+    name: 'Inflatable Giant', icon: '🎈', cost: 1500, supply: 6, hp: 2800, speed: 1.9, scale: 2.7,
     role: 'boss',
-    attack: { kind: 'melee', anim: 'stomp', reach: 3.4, damage: 60, cooldown: 2.0, knock: 15, splash: 4.2, structMult: 2.2 },
+    attack: { kind: 'melee', anim: 'stomp', reach: 4.2, damage: 95, cooldown: 1.8, knock: 15, splash: 4.5, structMult: 2.2 },
     weapon: 'none', look: { shirt: 'team', pants: 'team', hat: 'none', skin: 'balloon' },
     desc: 'A colossal parade balloon with a grudge. Stomps everything.',
   },
@@ -121,16 +123,16 @@ export const UNIT_ORDER = ['janitor', 'popper', 'clown', 'mascot', 'ringmaster',
 
 // Rough counter matrix used by the AI planner: EFF[a][b] = how well a trades vs b (1 = even).
 export const EFF = {
-  janitor:    { janitor: 1, popper: 1.4, clown: 1.0, mascot: 0.6, ringmaster: 1.2, bumper: 1.1, cannonball: 1.1, strongman: 0.45, cannoneer: 1.5, giant: 0.5 },
-  popper:     { janitor: 1.1, popper: 1, clown: 0.6, mascot: 1.5, ringmaster: 1.3, bumper: 0.55, cannonball: 1.0, strongman: 1.6, cannoneer: 1.2, giant: 1.7 },
-  clown:      { janitor: 0.9, popper: 1.7, clown: 1, mascot: 0.6, ringmaster: 1.3, bumper: 0.8, cannonball: 1.1, strongman: 1.2, cannoneer: 1.7, giant: 0.8 },
-  mascot:     { janitor: 1.5, popper: 0.8, clown: 1.5, mascot: 1, ringmaster: 1.2, bumper: 1.5, cannonball: 1.3, strongman: 0.7, cannoneer: 0.9, giant: 0.7 },
-  ringmaster: { janitor: 1.0, popper: 0.8, clown: 0.9, mascot: 0.9, ringmaster: 1, bumper: 0.9, cannonball: 1, strongman: 0.9, cannoneer: 1, giant: 1 },
-  bumper:     { janitor: 1.0, popper: 1.8, clown: 1.2, mascot: 0.6, ringmaster: 1.4, bumper: 1, cannonball: 1.2, strongman: 0.6, cannoneer: 1.9, giant: 0.6 },
-  cannonball: { janitor: 0.8, popper: 1.3, clown: 0.9, mascot: 0.7, ringmaster: 1.2, bumper: 0.8, cannonball: 1, strongman: 0.8, cannoneer: 2.0, giant: 0.6 },
-  strongman:  { janitor: 1.8, popper: 0.7, clown: 0.8, mascot: 1.5, ringmaster: 1.1, bumper: 1.6, cannonball: 1.1, strongman: 1, cannoneer: 1.0, giant: 1.2 },
-  cannoneer:  { janitor: 1.9, popper: 1.4, clown: 0.7, mascot: 1.0, ringmaster: 1.2, bumper: 0.5, cannonball: 0.6, strongman: 1.1, cannoneer: 1, giant: 1.0 },
-  giant:      { janitor: 1.8, popper: 0.7, clown: 1.3, mascot: 1.3, ringmaster: 1.2, bumper: 1.5, cannonball: 1.2, strongman: 0.9, cannoneer: 1.1, giant: 1 },
+  janitor:    { janitor: 1, popper: 1.69, clown: 0.7, mascot: 0.54, ringmaster: 1.2, bumper: 1.5, cannonball: 1.5, strongman: 0.47, cannoneer: 0.86, giant: 0.49 },
+  popper:     { janitor: 0.73, popper: 1, clown: 0.59, mascot: 1.47, ringmaster: 1.3, bumper: 0.52, cannonball: 1.43, strongman: 1.81, cannoneer: 0.77, giant: 1.87 },
+  clown:      { janitor: 1.36, popper: 1.71, clown: 1, mascot: 1.11, ringmaster: 1.3, bumper: 0.62, cannonball: 1.5, strongman: 0.77, cannoneer: 1.09, giant: 0.62 },
+  mascot:     { janitor: 1.75, popper: 0.75, clown: 0.86, mascot: 1, ringmaster: 1.2, bumper: 1.75, cannonball: 1.63, strongman: 0.58, cannoneer: 1.24, giant: 0.64 },
+  ringmaster: { janitor: 1, popper: 0.8, clown: 0.9, mascot: 0.9, ringmaster: 1, bumper: 0.9, cannonball: 1, strongman: 0.9, cannoneer: 1, giant: 1 },
+  bumper:     { janitor: 0.7, popper: 1.92, clown: 1.57, mascot: 0.54, ringmaster: 1.4, bumper: 1, cannonball: 1.2, strongman: 0.54, cannoneer: 1.97, giant: 0.54 },
+  cannonball: { janitor: 0.62, popper: 0.8, clown: 0.66, mascot: 0.58, ringmaster: 1.2, bumper: 0.82, cannonball: 1, strongman: 0.62, cannoneer: 2.02, giant: 0.54 },
+  strongman:  { janitor: 1.92, popper: 0.58, clown: 1.28, mascot: 1.75, ringmaster: 1.1, bumper: 1.81, cannonball: 1.5, strongman: 1, cannoneer: 1, giant: 0.77 },
+  cannoneer:  { janitor: 1.97, popper: 1.69, clown: 1, mascot: 0.76, ringmaster: 1.2, bumper: 0.49, cannonball: 0.54, strongman: 1.05, cannoneer: 1, giant: 1.43 },
+  giant:      { janitor: 1.92, popper: 0.58, clown: 1.63, mascot: 1.49, ringmaster: 1.2, bumper: 1.75, cannonball: 1.57, strongman: 1.36, cannoneer: 0.73, giant: 1 },
 };
 
 // ── Buildings ────────────────────────────────────────────────────────────────
@@ -139,52 +141,52 @@ export const BUILDINGS = {
   // Rides
   carousel: {
     name: 'Carousel', icon: '🎠', cat: 'rides', cost: 520, w: 5, d: 5, hp: 900, height: 7, upkeep: 5,
-    ride: { E: 3.1, I: 1.2, N: 0.9, cap: 12, cycle: 12, price: 7 },
+    ride: { E: 3.1, I: 1.2, N: 0.9, cap: 12, cycle: 12, price: 8 },
     desc: 'A gentle classic. Cheap, reliable income.',
   },
   teacups: {
     name: 'Spinning Teacups', icon: '☕', cat: 'rides', cost: 640, w: 5, d: 5, hp: 850, height: 4, upkeep: 6,
-    ride: { E: 4.0, I: 3.6, N: 5.0, cap: 12, cycle: 12, price: 8 },
+    ride: { E: 4.0, I: 3.6, N: 5.0, cap: 12, cycle: 12, price: 9 },
     desc: 'Dizzying fun. Great capacity for the price.',
   },
   pirate: {
     name: 'Pirate Ship', icon: '🏴‍☠️', cat: 'rides', cost: 950, w: 4, d: 8, hp: 1200, height: 10, upkeep: 8,
-    ride: { E: 5.5, I: 5.8, N: 4.4, cap: 16, cycle: 16, price: 10 },
+    ride: { E: 5.5, I: 5.8, N: 4.4, cap: 16, cycle: 16, price: 12 },
     combat: { type: 'swing', damage: 55, knock: 16 },
     desc: 'Swinging galleon. The hull smacks invaders standing under it.',
   },
   ferris: {
     name: 'Ferris Wheel', icon: '🎡', cat: 'rides', cost: 1200, w: 7, d: 4, hp: 1600, height: 18, upkeep: 9,
-    ride: { E: 4.8, I: 1.8, N: 1.0, cap: 16, cycle: 20, price: 9 },
+    ride: { E: 4.8, I: 1.8, N: 1.0, cap: 16, cycle: 20, price: 11 },
     rating: 6,
     desc: 'Towering landmark. Huge capacity and a big park-rating boost.',
   },
   droptower: {
     name: 'Drop Tower', icon: '🗼', cat: 'rides', cost: 1250, w: 3, d: 3, hp: 1100, height: 26, upkeep: 9,
-    ride: { E: 6.6, I: 8.2, N: 3.0, cap: 8, cycle: 12, price: 13 },
+    ride: { E: 6.6, I: 8.2, N: 3.0, cap: 8, cycle: 12, price: 15 },
     combat: { type: 'shockwave', radius: 11, damage: 42, knock: 14 },
     desc: 'Terrifying plunge. Each drop sends a shockwave through nearby invaders.',
   },
   cannonshow: {
     name: 'Human Cannon Show', icon: '🎆', cat: 'rides', cost: 1150, w: 3, d: 5, hp: 1000, height: 6, upkeep: 8,
-    ride: { E: 6.2, I: 7.0, N: 2.6, cap: 1, cycle: 4, price: 18 },
+    ride: { E: 6.2, I: 7.0, N: 2.6, cap: 1, cycle: 4, price: 20 },
     combat: { type: 'cannon', range: 80, damage: 60, splash: 3.6, cooldown: 4.5, knock: 12 },
     desc: 'Guests pay to be fired from a cannon. In battle... at the enemy.',
   },
   // Shops
   burger: {
     name: 'Burger Stall', icon: '🍔', cat: 'shops', cost: 220, w: 2, d: 2, hp: 400, height: 4, upkeep: 2,
-    shop: { need: 'hunger', price: 8 },
+    shop: { need: 'hunger', price: 9 },
     desc: 'Feeds hungry guests.',
   },
   soda: {
     name: 'Soda Stand', icon: '🥤', cat: 'shops', cost: 180, w: 2, d: 2, hp: 400, height: 4, upkeep: 2,
-    shop: { need: 'thirst', price: 5 },
+    shop: { need: 'thirst', price: 6 },
     desc: 'Quenches thirsty guests.',
   },
   balloons: {
     name: 'Balloon Cart', icon: '🎈', cat: 'shops', cost: 200, w: 2, d: 2, hp: 350, height: 4, upkeep: 2,
-    shop: { need: 'fun', price: 7 },
+    shop: { need: 'fun', price: 8 },
     desc: 'Happy guests buy balloons. Boosts guest happiness.',
   },
   // Defense attractions

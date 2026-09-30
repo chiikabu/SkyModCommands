@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import {
   DT, START_MONEY, PREP_TIME, BATTLE_TIME, RAMPAGE_TIME, MAX_ROUNDS, UNIT_TYPES, SUPPLY_CAP, TEAM_COLORS,
-  HALF_W, MID, DEPLOY_ROWS, TILE, BUILDINGS, COASTER, INSURANCE, SURVIVOR_HEAL,
+  HALF_W, MID, DEPLOY_ROWS, TILE, BUILDINGS, COASTER, INSURANCE, SURVIVOR_HEAL, PAYROLL, HOME_TURF,
 } from '../config.js';
 import { RNG } from '../util/rng.js';
 import { World } from './world.js';
@@ -54,6 +54,7 @@ export class Game {
     this.parks = [new Park(this, 0), new Park(this, 1)];
     this.guests = new GuestSystem(this);
     this.fields = [new FlowField(this.world), new FlowField(this.world)];
+    this.castleFields = [new FlowField(this.world), new FlowField(this.world)];
     this.navDirty = true;
     this.navTimer = 0;
     this.winner = -1;
@@ -165,6 +166,11 @@ export class Game {
   damageUnit(t, amount, source, dx, dy, dz, power, part = NECK) {
     if (!t.alive || amount <= 0 && power <= 0) return;
     if (t.team === (source && source.team)) return;
+    // home-turf advantage for defenders
+    if (source && source.isBuilding === undefined && source.team !== undefined && source.x !== undefined) {
+      const s = source.team === 0 ? 1 : -1;
+      if (source.z * s > MID) amount *= HOME_TURF;
+    }
     const dealt = Math.min(t.hp, amount);
     t.hp -= amount;
     this.lastDamageTime = this.time;
@@ -185,6 +191,18 @@ export class Game {
     }
     this.emit('hit', { x: t.x, y: t.y + 0.5 * t.def.scale, z: t.z, amount, team: t.team, unit: t, big: amount > 40 });
     if (t.hp <= 0) this.killUnit(t, source);
+  }
+
+  // Stuns with diminishing returns: big units resist, and a fresh stun grants brief immunity.
+  stunUnit(e, dur) {
+    const sc = e.def.scale;
+    const mul = sc >= 2 ? 0.15 : sc >= 1.15 ? 0.5 : 1;
+    e.pieFace = 3.5;
+    if (this.time < (e.stunImmune || 0)) return;
+    const d = dur * mul;
+    if (d < 0.1) return;
+    e.rd.stun = Math.max(e.rd.stun, d);
+    e.stunImmune = this.time + d + 1.6;
   }
 
   killUnit(t, source) {
@@ -215,7 +233,7 @@ export class Game {
   }
 
   // Area damage to enemies of `team`; knocks guests + corpses too.
-  splash(team, x, z, radius, damage, power, source, kind, direct = null) {
+  splash(team, x, z, radius, damage, power, source, kind, direct = null, stun = 0) {
     const enemies = this.units[1 - team];
     for (const e of enemies) {
       if (!e.alive) continue;
@@ -226,6 +244,7 @@ export class Game {
       const f = e === direct ? 1 : 1 - 0.55 * (d / r);
       const l = d || 1;
       this.damageUnit(e, damage * f, source, dx / l, 0.9, dz / l, power * f, PELVIS);
+      if (stun > 0 && e.alive) this.stunUnit(e, stun * f);
     }
     // cosmetic flinging of corpses + guests (any team)
     this.phys.queryBodies(x, z, radius + 0.5, (rd, k, d) => {
@@ -328,7 +347,17 @@ export class Game {
           }
         }
       }
-      f.build(goals, (c) => !c.ghost && c.h >= 1.2 && c.owner && c.owner.isBuilding && c.owner.def.cat !== 'scenery' && c.owner.hp > 0);
+      const block = (c) => !c.ghost && c.h >= 1.2 && c.owner && c.owner.isBuilding && c.owner.def.cat !== 'scenery' && c.owner.hp > 0;
+      f.build(goals, block);
+      // siege field: straight for the enemy castle (rides only matter if they block the way)
+      const cf = this.castleFields[team];
+      const castle = this.parks[1 - team].castle;
+      const cg = [];
+      if (castle && castle.hp > 0) {
+        const r = castle.worldRect(-1.2);
+        for (let x = r.x0; x <= r.x1 + 0.01; x += TILE) for (let z = r.z0; z <= r.z1 + 0.01; z += TILE) cg.push(cf.cellOf(x, z));
+      }
+      cf.build(cg.length ? cg : goals, block);
     }
     this.navDirty = false;
   }
@@ -340,7 +369,7 @@ export class Game {
   startPrep() {
     this.round++;
     this.phase = 'prep';
-    this.phaseTime = this.round === 1 ? PREP_TIME + 25 : PREP_TIME;
+    this.phaseTime = this.round === 1 ? PREP_TIME + 33 : PREP_TIME;
     this.battleStarted = false;
     this.rampage = -1;
     this.celebrate = -1;
@@ -359,6 +388,14 @@ export class Game {
       }
       this.units[team] = keep;
       this.teams[team].ready = false;
+      // payroll: veterans want wages
+      if (this.round > 1) {
+        const wages = Math.round(keep.reduce((s, u) => s + u.def.cost, 0) * PAYROLL);
+        if (wages > 0) {
+          this.spend(team, wages, 'wages');
+          this.emit('wages', { team, amount: wages });
+        }
+      }
     }
     for (const t of this.teams) t.ready = false;
     this.emit('phase', { phase: 'prep', round: this.round });
@@ -454,6 +491,8 @@ export class Game {
       const humansReady = this.teams.every((t) => !t.human || t.ready);
       const allAI = this.teams.every((t) => !t.human);
       if (this.phaseTime <= 0 || (humansReady && !allAI && this.teams.some((t) => t.human)) || (allAI && this.phaseTime <= 0)) {
+        // AIs finish their planning before the horn sounds
+        for (const ai of this.ai) if (ai) ai.flushPrep();
         this.startBattle();
       }
     } else if (ph === 'battle') {

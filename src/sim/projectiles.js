@@ -101,21 +101,21 @@ export class Projectiles {
       // resolve impact
       L.splice(i, 1);
       if (p.splash > 0) {
-        g.splash(p.team, p.x, p.z, p.splash, p.damage, p.knock, p.source, p.type, hitUnit);
+        g.splash(p.team, p.x, p.z, p.splash, p.damage, p.knock, p.source, p.type, hitUnit, p.stun);
         if (hitB) g.damageBuilding(hitB, p.damage * p.structMult, p.source, p.x, p.z);
         else {
           // splash also clips buildings inside the radius
           g.splashBuildings(p.team, p.x, p.z, p.splash, p.damage * p.structMult * 0.5, p.source);
         }
-        g.emit('explosion', { x: p.x, y: p.y, z: p.z, size: p.splash / 3, kind: p.type });
-        g.emit('shake', { x: p.x, z: p.z, power: Math.min(0.5, p.splash * 0.08) });
+        if (p.type === 'pie') g.emit('impact', { x: p.x, y: p.y, z: p.z, kind: 'pie', team: p.team });
+        else {
+          g.emit('explosion', { x: p.x, y: p.y, z: p.z, size: p.splash / 3, kind: p.type });
+          g.emit('shake', { x: p.x, z: p.z, power: Math.min(0.5, p.splash * 0.08) });
+        }
       } else if (hitUnit) {
         const l = Math.hypot(p.vx, p.vz) || 1;
         g.damageUnit(hitUnit, p.damage, p.source, p.vx / l, 0.25, p.vz / l, p.knock, hitK);
-        if (p.stun) {
-          hitUnit.rd.stun = Math.max(hitUnit.rd.stun, p.stun);
-          hitUnit.pieFace = 3.5;
-        }
+        if (p.stun) g.stunUnit(hitUnit, p.stun);
         g.emit('impact', { x: p.x, y: p.y, z: p.z, kind: p.type, team: p.team });
       } else if (hitB) {
         g.damageBuilding(hitB, p.damage * p.structMult, p.source, p.x, p.z);

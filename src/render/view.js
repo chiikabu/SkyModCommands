@@ -129,7 +129,7 @@ export class GameView {
           } else if (k === 'firework') {
             fx.firework(e.x, e.y + 0.5, e.z);
           } else if (k === 'car') {
-            fx.burstDebris(e.x, e.y, e.z, 12, [0x222222, 0xdddddd, TEAM_CONFETTI[0]]);
+            fx.burstDebris(e.x, e.y, e.z, 9, [0x6b6f78, 0xdddddd, 0xffd23f, 0xff5d5d]);
             fx.flash(e.x, e.y + 0.5, e.z, 0xffb347, 5, 0.3);
             fx.puff(e.x, e.y, e.z, 8, 0x555555, 1.5, 1.8, 1.5);
           } else {
@@ -246,8 +246,8 @@ export class GameView {
     const sunCol = new THREE.Color(1, 0.94, 0.84).lerp(new THREE.Color(1, 0.58, 0.32), sunset);
     const moonCol = new THREE.Color(0.55, 0.65, 1.0);
     this.sun.color.copy(sunCol).lerp(moonCol, night);
-    this.sun.intensity = lerp(2.9 * (1 - sunset * 0.35), 0.55, night);
-    this.hemi.intensity = lerp(1.05, 0.38, night);
+    this.sun.intensity = lerp(3.1 * (1 - sunset * 0.35), 0.55, night);
+    this.hemi.intensity = lerp(0.85, 0.36, night);
     this.hemi.color.set(0xcfe3ff).lerp(new THREE.Color(0x3a4a7a), night);
     this.hemi.groundColor.set(0x6a5a3a).lerp(new THREE.Color(0x1a1a2a), night);
     const fogDay = new THREE.Color(0xbad4f0).lerp(new THREE.Color(0xf0b890), sunset * 0.6);
@@ -268,8 +268,9 @@ export class GameView {
       sc.updateProjectionMatrix();
     }
     this.renderer.toneMappingExposure = lerp(1.05, 1.25, night);
-    this.post.bloom.strength = lerp(0.42, 0.95, night);
-    this.post.bloom.threshold = lerp(1.15, 0.6, night);
+    this.post.bloom.strength = lerp(0.22, 0.8, night);
+    this.post.bloom.radius = lerp(0.3, 0.5, night);
+    this.post.bloom.threshold = lerp(2.1, 0.85, night);
     // deployment-zone overlay during planning
     const zu = this.terrain.uniforms.uZones;
     const wantZones = g && (g.phase === 'prep' || (g.phase === 'battle' && !g.battleStarted)) ? 1 : 0;

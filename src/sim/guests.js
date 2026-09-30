@@ -33,7 +33,7 @@ export class Guest {
     this.id = NEXT_GID++;
     this.sys = sys;
     this.team = team;
-    this.money = Math.round(r.range(60, 190));
+    this.money = Math.round(r.range(90, 240));
     this.happiness = r.range(55, 80);
     this.hunger = r.range(0, 40);
     this.thirst = r.range(0, 40);
@@ -683,6 +683,7 @@ export class GuestSystem {
     rd.targetMuscle = 0;
     rd.muscle = 0;
     p.setVelocity(rd, vx, vy, vz);
+    rd.noDamp = true;
     gst.flying = true;
     gst.flyTime = 0;
     gst.state = 'flying';
@@ -710,6 +711,7 @@ export class GuestSystem {
     if (gst.flyTime > 5) impact = true;
     if (!impact) return;
     gst.flying = false;
+    gst.rd.noDamp = false;
     gst.rd.noCollide = false;
     if (gst.warhead) {
       const w = gst.warhead;

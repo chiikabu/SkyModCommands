@@ -57,9 +57,9 @@ export function generateNodes(station, rng, style = {}) {
         best = { perp, P1, P2, P3, P4, w, aFront, aBack };
         break;
       }
-      aFront = Math.max(12, aFront * 0.85);
-      aBack = Math.max(11, aBack * 0.85);
-      w = Math.max(15, w * 0.86);
+      aFront = Math.max(8.5, aFront * 0.85);
+      aBack = Math.max(8.5, aBack * 0.85);
+      w = Math.max(13, w * 0.86);
     }
     if (best) break;
   }
@@ -67,7 +67,7 @@ export function generateNodes(station, rng, style = {}) {
   const { perp, P1, P2, P3, P4, w } = best;
   // Filleted polyline B→P1→P2→P3→P4→A with corner radius Rc
   const Rc = Math.min(9, w / 2 - 0.5, best.aFront - 3, best.aBack - 3);
-  if (Rc < 5) return null;
+  if (Rc < 4.2) return null;
   const pts2 = [];
   const poly = [B, P1, P2, P3, P4, A];
   const add = (p) => pts2.push(p);
@@ -207,7 +207,9 @@ export function scoreDesign(d, weights) {
   }
   d.lowMeters = lowMeters;
   const excite = st.excitement;
-  const value = income * (weights.econ ?? 1) * (0.6 + excite / 10) + lowMeters * 9 * (weights.defense ?? 0.5) + excite * 60;
+  // too intense → fewer guests dare to ride
+  const ridership = Math.max(0.35, Math.min(1, 1 - (st.intensity - 7.4) * 0.28));
+  const value = income * ridership * (weights.econ ?? 1) * (0.6 + excite / 10) + lowMeters * 9 * (weights.defense ?? 0.5) + excite * 60 * ridership;
   return value / Math.pow(d.cost, 0.72);
 }
 

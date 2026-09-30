@@ -44,8 +44,8 @@ const Grade = {
   uniforms: {
     tDiffuse: { value: null },
     uVignette: { value: 0.32 },
-    uSat: { value: 1.12 },
-    uContrast: { value: 1.04 },
+    uSat: { value: 1.14 },
+    uContrast: { value: 1.07 },
     uFlash: { value: new THREE.Vector4(1, 1, 1, 0) },
     uTime: { value: 0 },
   },

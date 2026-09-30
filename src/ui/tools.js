@@ -52,10 +52,11 @@ export class Tools {
   }
   _bind() {
     const c = this.app.view.canvas;
-    c.addEventListener('pointermove', (e) => {
+    window.addEventListener('pointermove', (e) => {
       this.mouse.x = e.clientX;
       this.mouse.y = e.clientY;
-      if (this.mouse.down) this.drag();
+      this.mouse.onCanvas = e.target === c;
+      if (this.mouse.down && this.mouse.onCanvas) this.drag();
     });
     c.addEventListener('pointerdown', (e) => {
       if (!this.game || this.app.hud?.spectator && e.button === 0 && !this.tool) {
@@ -242,8 +243,20 @@ export class Tools {
   update() {
     const g = this.game;
     if (!g || !this.tool) return;
-    const p = this.ground();
     const tu = this.app.view.terrain.uniforms;
+    if (!this.mouse.onCanvas && this.tool !== 'coaster-track') {
+      // pointer is over the HUD: hide placement previews
+      this.hint(null);
+      if (this.ghost && this.tool !== 'coaster-track') this.ghost.visible = false;
+      this.ring.visible = false;
+      this.ghostUnit.visible = false;
+      this.arrow.visible = false;
+      tu.uHighlight.value.set(0, 0, 0, 0);
+      if (this.tool.startsWith('coaster')) this.updateCoasterPreview();
+      return;
+    }
+    if (this.ghost) this.ghost.visible = true;
+    const p = this.ground();
     if (!p) {
       this.hint(null);
       return;
@@ -310,13 +323,25 @@ export class Tools {
         this.hint(this.tool === 'demolish' ? 'Click a building to sell it' : 'Click a damaged building');
       }
     } else if (this.tool === 'coaster-track') {
-      this.pole.visible = true;
-      const gy = g.world.heightAt(p.x, p.z);
-      this.pole.position.set(p.x, gy + this.nodeH / 2, p.z);
-      this.pole.scale.set(1, Math.max(0.5, this.nodeH), 1);
-      this.candidate = { lx: p.x, lz: p.z, h: this.nodeH };
-      this.previewDirty = true;
-      this.hint(`Node height ${this.nodeH} m · Shift+Wheel / Z X to change · Click to add · Backspace undo`);
+      if (this.mouse.onCanvas) {
+        this.pole.visible = true;
+        const gy = g.world.heightAt(p.x, p.z);
+        this.pole.position.set(p.x, gy + this.nodeH / 2, p.z);
+        this.pole.scale.set(1, Math.max(0.5, this.nodeH), 1);
+        const c = this.candidate;
+        if (!c || Math.abs(c.lx - p.x) > 0.3 || Math.abs(c.lz - p.z) > 0.3 || c.h !== this.nodeH) {
+          this.candidate = { lx: p.x, lz: p.z, h: this.nodeH };
+          this.previewDirty = true;
+        }
+        this.hint(`Node height ${this.nodeH} m · Shift+Wheel / Z X to change · Click to add · Backspace undo`);
+      } else {
+        if (this.candidate) {
+          this.candidate = null;
+          this.previewDirty = true;
+        }
+        this.pole.visible = false;
+        this.hint(null);
+      }
     }
     if (this.tool && this.tool.startsWith('coaster')) this.updateCoasterPreview();
   }
@@ -535,26 +560,33 @@ export class Tools {
   autoDesign() {
     const g = this.game;
     let best = null;
-    for (let t = 0; t < 30; t++) {
-      let nodes = generateNodes(this.station, this.rng, { defensive: this.rng.chance(0.5), minH: 14, maxH: 28 });
+    // try both travel directions through the (symmetric) station footprint
+    const rots = [this.station.rot, (this.station.rot + 2) % 4];
+    for (let t = 0; t < 40; t++) {
+      const st = { ...this.station, rot: rots[t % 2] };
+      let nodes = generateNodes(st, this.rng, { defensive: this.rng.chance(0.5), minH: 14, maxH: 28 });
       if (!nodes) continue;
-      let d = designTrack(g, 0, this.station, nodes);
+      let d = designTrack(g, 0, st, nodes);
       for (let fix = 0; fix < 2 && !d.valid && /hits/.test(d.reason); fix++) {
-        nodes = repairDesign(g, 0, this.station, nodes, d);
-        d = designTrack(g, 0, this.station, nodes);
+        nodes = repairDesign(g, 0, st, nodes, d);
+        d = designTrack(g, 0, st, nodes);
       }
       if (!d.valid) continue;
-      const score = d.stats.excitement - Math.max(0, d.cost - g.teams[0].money) / 500;
-      if (!best || score > best.score) best = { nodes, score };
+      const score = d.stats.excitement - Math.max(0, d.stats.intensity - 7.6) * 1.4 - Math.max(0, d.cost - g.teams[0].money) / 500;
+      if (!best || score > best.score) best = { nodes, score, rot: st.rot };
     }
     if (best) {
+      this.station.rot = best.rot;
+      if (this.ghost) this.ghost.rotation.y = Math.PI - best.rot * (Math.PI / 2);
       this.nodes = best.nodes;
       this.candidate = null;
+      this.designFail = false;
       this.drawNodes();
       this.previewDirty = true;
       this.app.audio.ui('build');
     } else {
-      this.cWarn.textContent = 'Could not find a valid layout here — try another station spot.';
+      this.designFail = true;
+      this.cWarn.textContent = 'No room for a loop here — cancel and place the station somewhere more open.';
       this.app.audio.ui('error');
     }
   }
@@ -566,16 +598,17 @@ export class Tools {
     this.previewDirty = false;
     const g = this.game;
     const nodes = [...this.nodes];
-    const useCand = this.candidate && this.mouseOverCanvas();
+    const useCand = this.candidate && this.mouse.onCanvas;
     if (useCand) nodes.push(this.candidate);
     if (nodes.length < 2) {
       this.app.view.coasters.clearPreview();
       if (this.cStats) {
         clear(this.cStats);
-        this.cWarn.textContent = 'Add at least 2 nodes (or hit Auto-design).';
+        if (!this.designFail) this.cWarn.textContent = 'Add at least 2 nodes (or hit Auto-design).';
       }
       return;
     }
+    this.designFail = false;
     const d = designTrack(g, 0, this.station, nodes);
     this.design = d;
     this.app.view.coasters.setPreview(d, 0);

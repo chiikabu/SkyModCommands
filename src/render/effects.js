@@ -98,7 +98,7 @@ class SoftPool {
       transparent: true,
       depthWrite: false,
       blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
-      uniforms: { uTime: U.time },
+      uniforms: { uTime: U.time, uNight: U.night, uLit: { value: additive ? 0 : 1 } },
       vertexShader: `
         attribute vec4 aOff;
         attribute vec4 aCol;
@@ -112,6 +112,8 @@ class SoftPool {
           gl_Position = projectionMatrix * mv;
         }`,
       fragmentShader: `
+        uniform float uNight;
+        uniform float uLit;
         varying vec4 vCol;
         varying vec2 vUv;
         void main() {
@@ -119,7 +121,9 @@ class SoftPool {
           float r = length(d) * 2.0;
           float a = smoothstep(1.0, 0.0, r);
           a *= a;
-          gl_FragColor = vec4(vCol.rgb, vCol.a * a);
+          // lit smoke darkens at night, glows (additive) stay bright
+          vec3 c = vCol.rgb * mix(1.0, mix(0.9, 0.22, uNight), uLit);
+          gl_FragColor = vec4(c, vCol.a * a);
         }`,
       toneMapped: false,
     });
@@ -172,7 +176,7 @@ export class Effects {
     this.world = world;
     this.confetti = new LitPool(scene, new THREE.PlaneGeometry(0.16, 0.09), 2500, { double: true, flutter: true });
     this.popcorn = new LitPool(scene, new THREE.IcosahedronGeometry(0.09, 0), 900, { bounce: 0.4, shadow: false });
-    this.debris = new LitPool(scene, new THREE.BoxGeometry(0.3, 0.2, 0.35), 700, { bounce: 0.25, shadow: true });
+    this.debris = new LitPool(scene, new THREE.BoxGeometry(0.24, 0.16, 0.28), 700, { bounce: 0.25, shadow: false });
     this.smoke = new SoftPool(scene, 900, false);
     this.glow = new SoftPool(scene, 1600, true);
     this.rings = [];

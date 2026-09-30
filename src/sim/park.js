@@ -805,10 +805,10 @@ export class Park {
   }
 
   guestCapacity() {
-    let cap = 12;
+    let cap = 14;
     for (const b of this.buildings) {
       if (b.ruined) continue;
-      if (b.def.ride || b.coaster) cap += (b.coaster ? 16 : Math.min(16, Math.max(6, b.def.ride.cap))) * 1.7;
+      if (b.def.ride || b.coaster) cap += (b.coaster ? 16 : Math.min(16, Math.max(6, b.def.ride.cap))) * 2.4;
       if (b.def.shop) cap += 3;
     }
     return cap;

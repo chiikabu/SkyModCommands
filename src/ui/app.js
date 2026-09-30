@@ -99,9 +99,13 @@ export class App {
     this.view.rig.enabled = true;
     this.view.rig.mode = 'free';
     this.view.rig.edgePan = s.edgePan;
+    // intro fly-over: rival castle → your park
+    this.view.rig.focus(0, -60, 60, 0.35);
+    this.view.rig.goalPitch = 0.42;
+    this.view.rig.snap();
     this.view.rig.focus(0, 52, 95, 0);
     this.view.rig.goalPitch = 0.9;
-    this.view.rig.snap();
+    this.view.rig.glide(3.5, 0.9);
     this.tools = this.tools || new Tools(this);
     this.hud = new HUD(this, g, { spectator: false });
     clear(this.overlay);
@@ -186,7 +190,27 @@ export class App {
     requestAnimationFrame((t) => this.loop(t));
   }
   onGameEvent(e) {
+    if (e.type === 'fight' && this.mode === 'play') {
+      // frame the clash unless the player is busy looking at something specific
+      const rig = this.view.rig;
+      if (rig.mode === 'free' && !(this.tools && this.tools.tool)) {
+        rig.focus(0, 8, Math.max(62, Math.min(95, rig.goalDist)), rig.goalYaw);
+        rig.goalPitch = Math.min(rig.goalPitch, 0.8);
+        rig.glide(1.6, 2.2);
+      }
+    }
     if (e.type === 'gameOver' && this.mode !== 'title') {
+      // dramatic slow-motion on the final blow
+      this._prevSpeed = this.speed || 1;
+      this.speed = 0.3;
+      setTimeout(() => {
+        if (this.speed === 0.3) this.speed = this._prevSpeed;
+      }, 2600);
+      const loser = this.game.parks[1 - e.winner].castle;
+      if (loser) {
+        this.view.rig.focus(loser.x, loser.z, 55, this.view.rig.goalYaw);
+        this.view.rig.glide(1.5, 2.5);
+      }
       setTimeout(() => this.showResults(e.winner), 2200);
       if (this.mode === 'play') this.audio.fanfare(e.winner === 0);
       else this.audio.fanfare(true);

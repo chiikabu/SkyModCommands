@@ -213,7 +213,7 @@ export class Physics {
         rx[k] = x[k]; ry[k] = y[k]; rz[k] = z[k];
       }
       if (rd.sleeping) continue;
-      const damp = rd.muscle > 0.05 ? 0.985 : 0.992;
+      const damp = rd.noDamp ? 0.9996 : rd.muscle > 0.05 ? 0.985 : 0.992;
       const gy = -GRAVITY * rd.gravityScale;
       for (let i = 0; i < NP; i++) {
         const k = b + i;

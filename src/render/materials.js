@@ -108,7 +108,7 @@ export function initMaterials() {
       void main() {
         float chase = 0.55 + 0.45 * step(0.5, fract(vPhase * 3.0 - uTime * uSpeed));
         float twinkle = 0.85 + 0.15 * sin(uTime * 9.0 + vPhase * 40.0);
-        float lvl = mix(1.1, 4.2, uNight) * chase * twinkle;
+        float lvl = mix(1.7, 4.4, uNight) * chase * twinkle;
         gl_FragColor = vec4(vCol * lvl, 1.0);
       }`,
     toneMapped: false,

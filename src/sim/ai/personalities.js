@@ -58,8 +58,8 @@ export const PERSONALITIES = {
     avatar: '💰',
     color: '#f1c40f',
     blurb: 'Greedy economist. Builds a money machine, then buys giants by the dozen.',
-    econ: 0.62, army: 0.28, defense: 0.1,
-    coasterLove: 1.2, aggression: 0.7, patience: 1.6,
+    econ: 0.52, army: 0.33, defense: 0.15,
+    coasterLove: 1.3, aggression: 0.75, patience: 1.4,
     favorites: { giant: 1.5, popper: 1.2, mascot: 1.1, ringmaster: 1.15 },
     taunts: {
       start: ['Every guest is a customer. Every customer is ammunition.', 'Let\'s talk numbers. Mostly MY numbers.', 'Time is money. You are wasting both.'],

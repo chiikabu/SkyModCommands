@@ -313,16 +313,16 @@ export function makePirate(teamColor) {
     s.beam([side * 1.6, 0, 0], [side * 1.2, -5.2, -1.6], 0.12, 0x6d7b8c);
     s.beam([side * 1.6, 0, 0], [side * 1.2, -5.2, 1.6], 0.12, 0x6d7b8c);
   }
-  // hull: planked tapered shape
-  const hull = new THREE.CylinderGeometry(1.6, 0.9, 9.6, 10, 4, false, Math.PI, Math.PI);
-  hull.rotateX(Math.PI / 2);
-  hull.rotateZ(Math.PI);
-  s.add(hull, (c) => (Math.floor((c.y + 10) * 2.2) % 2 ? 0x7a4a2a : 0x8f5a33), 0, -5.6, 0);
-  s.box(3.0, 0.2, 9.0, 0xb07a45, 0, -5.4, 0);
-  // bow + stern
-  s.cone(1.2, 2.4, 0x7a4a2a, 0, -5.4, 5.6, 8, Math.PI / 2, 0, 0);
-  s.cone(1.2, 2.4, 0x7a4a2a, 0, -5.4, -5.6, 8, -Math.PI / 2, 0, 0);
-  s.box(3.3, 0.25, 9.8, GOLD, 0, -5.15, 0);
+  // hull: planked half-ellipsoid
+  const hull = new THREE.SphereGeometry(1, 20, 10, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+  s.add(hull, (c) => (Math.floor(-c.y * 7) % 2 ? 0x7a4a2a : 0x925c34), 0, -5.2, 0, 0, 0, 0, 1.75, 1.35, 5.4);
+  s.add(new THREE.CylinderGeometry(1.72, 1.72, 0.28, 24), 0xb07a45, 0, -5.1, 0, 0, 0, 0, 1, 1, 3.1);
+  s.box(3.2, 0.2, 9.4, 0xc08a55, 0, -5.2, 0);
+  // stern castle + bowsprit
+  s.box(2.8, 1.1, 1.8, 0x7a4a2a, 0, -4.5, -4.3);
+  s.box(3.0, 0.15, 2.0, GOLD, 0, -3.9, -4.3);
+  s.cyl(0.08, 0.12, 2.6, 0x5a3d2b, 0, -4.6, 6.1, 6, Math.PI / 2 - 0.35, 0, 0);
+  s.add(new THREE.TorusGeometry(1.76, 0.07, 6, 48), GOLD, 0, -4.98, 0, Math.PI / 2, 0, 0, 1, 3.1, 1);
   // benches
   for (let k = 0; k < 8; k++) s.box(2.6, 0.35, 0.35, 0x5a3d2b, 0, -5.1, (k - 3.5) * 1.1);
   // mast & sail
@@ -334,7 +334,7 @@ export function makePirate(teamColor) {
   // cannons
   for (const side of [-1, 1]) for (const z of [-2, 0, 2]) s.cyl(0.12, 0.14, 0.7, 0x222222, side * 1.65, -5.0, z, 8, 0, 0, Math.PI / 2);
   // stripe in team colour
-  s.box(3.25, 0.3, 9.4, teamColor, 0, -5.6, 0);
+  s.add(new THREE.TorusGeometry(1.66, 0.12, 6, 48), teamColor, 0, -5.55, 0, Math.PI / 2, 0, 0, 1, 3.05, 1);
   const swingMesh = mesh(s.build());
   swing.add(swingMesh);
   const bl = new Bulbs();

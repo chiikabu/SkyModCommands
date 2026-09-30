@@ -181,8 +181,26 @@ export class AIPlayer {
     const reserve = Math.min(A.money * 0.06, 350);
     const saved = Math.min(this.savings || 0, A.money - reserve);
     const spend = Math.max(0, A.money - reserve - saved);
-    this.budget = { econ: spend * econ + saved, army: spend * army, defense: spend * defense };
-    this.shares = { econ, army, defense };
+    // Army parity: never fall behind the army we expect to face; invest the surplus.
+    const parity = { mayhem: 1.3, gustavo: 1.15, baron: 1.0, penny: 0.95 }[this.p.id] ?? 1.1;
+    const defended = A.myDef.v * 0.35;
+    const need = Math.max(0, A.predicted * parity * (0.85 + 0.3 * this.d.counter) - A.myArmyValue - defended);
+    const armyFloor = Math.min(spend, need);
+    const rest = spend - armyFloor;
+    const restShares = econ + defense + army * 0.35;
+    this.budget = {
+      econ: (rest * econ) / restShares + saved,
+      army: armyFloor + (rest * army * 0.35) / restShares,
+      defense: (rest * defense) / restShares,
+    };
+    // outgunned badly? spend on defense too
+    if (need > spend * 1.3 && defense < 0.25) {
+      const shift = this.budget.army * 0.15;
+      this.budget.army -= shift;
+      this.budget.defense += shift;
+    }
+    const bt = this.budget.econ + this.budget.army + this.budget.defense || 1;
+    this.shares = { econ: this.budget.econ / bt, army: this.budget.army / bt, defense: this.budget.defense / bt };
 
     // Chatter
     if (r === 1) this.say('start', {}, true);
@@ -247,7 +265,9 @@ export class AIPlayer {
         style: { defensive: this.rng.chance(this.p.defense > 0.2 ? 0.7 : 0.35), minH: 14, maxH: 18 + Math.min(14, budget / 400) },
         stations: null,
       };
-      budget -= Math.min(budget, 3500);
+      const reserve = Math.min(budget, 3500);
+      budget -= reserve;
+      this.coasterReserve = reserve; // protected from the end-of-planning top-up
     }
     // Rides by ROI (attractions first: no rides → no guests → no money)
     const util = Math.max(0.4, Math.min(1.2, (guests + 16) / Math.max(20, cap)));
@@ -275,11 +295,11 @@ export class AIPlayer {
       counts[best] = (counts[best] || 0) + 1;
       rides++;
       this.savings = 0;
-      addedCap += BUILDINGS[best].ride.cap * 1.25;
+      addedCap += Math.min(16, Math.max(6, BUILDINGS[best].ride.cap)) * 2.4;
       budget -= BUILDINGS[best].cost + 60;
     }
     // Shops by projected demand
-    const projGuests = Math.min(64, guests + addedCap * 0.8 + (rides > 0 ? 10 : 0));
+    const projGuests = Math.min(80, guests + addedCap * 1.1 + (rides > 0 ? 10 : 0));
     const needFood = rides === 0 ? 0 : Math.max(0, Math.ceil((projGuests - 6) / 20) - foodShops);
     const needDrink = rides === 0 ? 0 : Math.max(0, Math.ceil((projGuests - 14) / 22) - drinkShops);
     for (let i = 0; i < needFood && budget > 300; i++) { picks.push('burger'); budget -= BUILDINGS.burger.cost + 40; }
@@ -318,8 +338,8 @@ export class AIPlayer {
     }
     const model = R.price * Math.min(R.cap, 16) * (60 / (R.cycle + 6)) * 0.38;
     const learned = n ? sum / n : model;
-    const room = Math.max(0.25, 1 - park.guestCount / 64);
-    const capBonus = Math.min(16, Math.max(6, R.cap)) * 1.7 * ENTRY_FEE / 4.2 * room;
+    const room = Math.max(0.25, 1 - park.guestCount / 80);
+    const capBonus = Math.min(16, Math.max(6, R.cap)) * 2.4 * ENTRY_FEE / 4.2 * room;
     return learned * 0.65 + model * 0.35 + capBonus;
   }
 
@@ -535,14 +555,24 @@ export class AIPlayer {
     eff = wsum ? eff / wsum : 1;
     const myPow = myValue * eff;
     const enPow = A.predicted;
-    const attackRatio = (myPow / (enPow + A.enDef.v * 0.75 + 1)) * this.p.aggression;
-    const holdRatio = (myPow + A.myDef.v * 0.85) / (enPow + 1);
+    const attackRatio = (myPow / (enPow + A.enDef.v * 0.4 + 1)) * this.p.aggression;
+    const holdRatio = (myPow + A.myDef.v * 0.7) / (enPow + 1);
+    const enHist = g.teams[this.enemyTeam].armyHistory;
+    const enHeld = enHist.length && enHist[enHist.length - 1].stance === 'hold';
+    const iHeld = this.lastStance === 'hold';
     let stance = 'charge';
     if (this.rng.next() < this.d.micro) {
-      if (attackRatio < 0.95 && holdRatio > attackRatio * 1.1) stance = 'hold';
-      if (g.round >= MAX_ROUNDS - 1 && A.myCastle <= A.enCastle) stance = 'charge';
+      // defend when outgunned: fight under our turrets and castle fireworks
+      if (attackRatio < 0.62) stance = 'hold';
+      else if (attackRatio < 0.95 && holdRatio > attackRatio * 1.25) stance = 'hold';
+      // don't let the game stall: if both sides sat back last round, push unless badly outmatched
+      if (stance === 'hold' && enHeld && iHeld && attackRatio > 0.55) stance = 'charge';
+      // mid/late game with no castle progress: the patient ones eventually strike
+      if (stance === 'hold' && g.round >= 4 + Math.round(this.p.patience * 2) && attackRatio > 0.6 && this.rng.chance(0.5)) stance = 'charge';
+      if (g.round >= MAX_ROUNDS - 2 && A.myCastle <= A.enCastle + 0.05) stance = 'charge';
       if (myValue < 150) stance = 'hold';
-    }
+    } else if (this.rng.chance(0.3)) stance = 'hold';
+    this.lastStance = stance;
     this.queue.push({ kind: 'stance', stance, pri: 50 });
     this.intendedStance = stance;
   }
@@ -575,11 +605,7 @@ export class AIPlayer {
         this.peeked = true;
         this.peekAdjust();
       }
-      // Pace: if the human is ready early, flush the queue quickly
-      if (g.teams.some((t) => t.human && t.ready)) {
-        let n = 0;
-        while (this.queue.length && n++ < 40) this.execute(this.queue.shift());
-      }
+
     } else if (g.phase === 'battle') {
       this.battleTimer -= dt;
       if (this.battleTimer <= 0) {
@@ -588,6 +614,16 @@ export class AIPlayer {
       }
     } else if (g.phase === 'results') {
       // opportunistic repairs of defenses
+    }
+  }
+
+  // Called right before a battle starts: finish every queued action + spend leftovers.
+  flushPrep() {
+    let n = 0;
+    while (this.queue.length && n++ < 200) this.execute(this.queue.shift());
+    if (!this.topUpDone) {
+      this.topUpDone = true;
+      this.topUp();
     }
   }
 
@@ -638,7 +674,7 @@ export class AIPlayer {
     if (money < 150) return;
     // Spend most leftover on units according to the same scoring, keep a small reserve
     const saveBudget = this.budget;
-    this.budget = { econ: 0, defense: 0, army: Math.max(0, money - 250 - (this.savings || 0)) };
+    this.budget = { econ: 0, defense: 0, army: Math.max(0, money - 250 - (this.savings || 0) - (this.coasterJob ? this.coasterReserve || 0 : 0)) };
     const before = this.queue.length;
     this.plan = this.analyze();
     this.planArmyTopUp();
@@ -797,6 +833,7 @@ export class AIPlayer {
     }
     if (job.tries >= job.max) {
       this.coasterJob = null;
+      this.coasterReserve = 0;
       if (job.best && this.team_.money >= job.best.d.cost + 100) {
         const r = g.buildCoaster(this.team, { gx: job.best.st.gx, gz: job.best.st.gz, rot: job.best.st.rot }, job.best.nodes);
         if (r.ok) {

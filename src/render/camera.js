@@ -89,6 +89,11 @@ export class CameraRig {
     this.follow = null;
     this.rideCoaster = null;
   }
+  // slow cinematic glide to the current goal
+  glide(seconds, rate = 1.1) {
+    this.smooth = rate;
+    this.smoothT = seconds;
+  }
   snap() {
     this.target.copy(this.goal);
     this.yaw = this.goalYaw;
@@ -150,7 +155,11 @@ export class CameraRig {
     // clamp to the island
     this.goal.x = clamp(this.goal.x, -HALF_W - 40, HALF_W + 40);
     this.goal.z = clamp(this.goal.z, -PARK_LZ1 - 40, PARK_LZ1 + 40);
-    const t = 1 - Math.exp(-dt * 7);
+    if (this.smoothT > 0) {
+      this.smoothT -= dt;
+      if (this.smoothT <= 0) this.smooth = 7;
+    }
+    const t = 1 - Math.exp(-dt * (this.smooth || 7));
     this.target.lerp(this.goal, t);
     this.yaw = lerp(this.yaw, this.goalYaw, t);
     this.pitch = lerp(this.pitch, this.goalPitch, t);

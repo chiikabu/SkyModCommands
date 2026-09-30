@@ -308,7 +308,7 @@ export function simulateStats(d) {
   st.intensity = Math.max(0.3, Math.min(10, I));
   st.nausea = Math.max(0.2, Math.min(10, N));
   d.stats = st;
-  d.price = Math.round(6 + st.excitement * 2.2);
+  d.price = Math.round(7 + st.excitement * 2.5);
   return st;
 }
 
